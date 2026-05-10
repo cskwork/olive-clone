@@ -1,0 +1,6 @@
+     indexname     |                                  indexdef                                   
+-------------------+-----------------------------------------------------------------------------
+ members_pkey      | CREATE UNIQUE INDEX members_pkey ON public.members USING btree (id)
+ members_email_key | CREATE UNIQUE INDEX members_email_key ON public.members USING btree (email)
+(2 rows)
+

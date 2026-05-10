@@ -43,5 +43,26 @@ primary key for orders, reviews, coupons, points — get this right.
   per-resource least-privilege (예: `PRODUCT_ADMIN` 만 product 관리) 는 컨트롤러
   `@PreAuthorize` 에서 강제. 본 티켓은 `/api/admin/products` placeholder 한 건만
   `@PreAuthorize("hasRole('PRODUCT_ADMIN')")` 시연.
+- 2026-05-10 | OLV-010 | `V2__member.sql` 적용 — 5 테이블
+  (`members` / `member_addresses` / `member_grades` / `member_login_histories` /
+  `member_refresh_tokens`) + `set_updated_at()` trigger 함수 + BRONZE/SILVER/GOLD
+  3건 등급 시드. invariants:
+  - `members.email` UNIQUE → b-tree `members_email_key` 자동 생성 (2000행에서
+    `Index Scan` 으로 plan 채택 확인).
+  - `members.status` CHECK `IN ('ACTIVE','SUSPENDED','DELETED')` — 잠금 상태는
+    Redis (PRD §14) 가 따로 관리, 본 컬럼은 영구 상태만.
+  - `member_addresses` partial unique `(member_id) WHERE is_default = TRUE` —
+    회원당 default 배송지 1건을 DB 가 강제, 어플리케이션 race 차단.
+  - `member_login_histories.member_id` NULLABLE + `ON DELETE SET NULL` —
+    UNKNOWN_EMAIL 실패도 감사 로그 보존, 회원 삭제 시 anonymize 보존
+    (PRD §16.2 + GDPR).
+  - `member_login_histories(member_id, login_at DESC)` 인덱스 — 감사 조회
+    "특정 회원의 최근 로그인 N건" 패턴.
+  - `member_refresh_tokens.token_hash` CHAR(64) UNIQUE — SHA-256 hex.
+    plain refresh token 은 절대 영속화 금지 (OLV-005 contract).
+  - 활성 토큰 lookup: partial index `(member_id) WHERE revoked_at IS NULL`.
+  - `BIGSERIAL` 채택 (PRD §18 Postgres) — MySQL `AUTO_INCREMENT` 문법 금지.
+  - `updated_at` 갱신은 trigger 로 native SQL 경로 (배치/admin) 까지 일관
+    유지 — JPA `@PreUpdate` 만 의존 시 native query 가 우회.
 
-**Last updated:** 2026-05-10 by OLV-005.
+**Last updated:** 2026-05-10 by OLV-010.

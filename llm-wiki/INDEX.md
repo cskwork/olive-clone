@@ -12,7 +12,7 @@ in doubt, open the PDF.
 |-----------------------------|-----------------------------------------------------------------------------|----------------------|
 | 00-architecture-overview    | Modular monolith package layout, storage map, external systems              | 2026-05-10 (OLV-001) |
 | 01-common-conventions       | ApiResponse envelope / ErrorCode→HTTP / X-Request-Id MDC / audit JSON 규약    | 2026-05-10 (OLV-004) |
-| 10-member-domain            | members / addresses / grades, JWT access+refresh, role hierarchy            | 2026-05-10 (OLV-005) |
+| 10-member-domain            | members / addresses / grades, JWT access+refresh, role hierarchy            | 2026-05-10 (OLV-010) |
 | 20-product-domain           | products / options / images / brands / categories, status state machine     | 2026-05-10 (seed)    |
 | 30-inventory-domain         | Per-option inventory, reserve→commit, Redis distributed lock + DB fallback  | 2026-05-10 (seed)    |
 | 40-cart-domain              | carts/cart_items, anon vs member cart merge, re-validate at order time      | 2026-05-10 (seed)    |
