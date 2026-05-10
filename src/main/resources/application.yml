@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: commerce-backend
+  autoconfigure:
+    exclude:
+      # 부트스트랩 단계에 회원 도메인이 없어 InMemoryUserDetailsManager가 임의
+      # 비밀번호를 로그에 찍는다 — 시크릿 누출 형태이므로 자동설정 자체를 끈다.
+      # OLV-010(회원 도메인)에서 실제 UserDetailsService를 주입하며 해제한다.
+      - org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+  jpa:
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+olive:
+  security:
+    jwt:
+      issuer: olive-commerce
+      access-ttl: PT30M
+      refresh-ttl: P14D
+      private-key-location: classpath:keys/app.key
+      public-key-location: classpath:keys/app.pub
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true

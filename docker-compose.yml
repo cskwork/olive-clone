@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: commerce-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: commerce
+      POSTGRES_USER: commerce
+      POSTGRES_PASSWORD: commerce
+    ports:
+      - "5432:5432"
+    volumes:
+      - commerce-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U commerce -d commerce"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  commerce-postgres-data:

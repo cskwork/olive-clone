@@ -1,0 +1,37 @@
+# Build output
+build/
+out/
+.gradle/
+
+# Logs
+*.log
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+
+# Local environment & secrets
+.env
+.env.*
+# 개인 시크릿 오버레이는 application-local-personal.yml 사용 (OLV-002).
+# application-local.yml은 docker-compose 짝꿍의 공식 로컬 프로파일이므로 체크인된다.
+application-local-personal.yml
+
+# OS
+.DS_Store
+
+# Symphony runtime artifacts
+/log/
+/.tui-launcher.command
+
+# Archon MCP configs (may reference env-var-only tokens)
+/.archon/mcp/
+
+# JWT signing keys — dev keypair gitignored (OLV-005).
+# 운영은 Secrets Manager / K8s Secret 마운트로 주입한다 (llm-wiki/98-security.md).
+src/main/resources/keys/*
+!src/main/resources/keys/.gitkeep
+!src/main/resources/keys/README.md

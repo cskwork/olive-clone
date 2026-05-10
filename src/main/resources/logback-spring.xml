@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!--
+      OLV-004: 콘솔(개발자 가독용) + audit JSON 파일(OLV-130 옵저버빌리티가 스크레이프).
+      두 appender는 완전히 분리. application 로그는 audit 파일에 들어가지 않고,
+      audit 라인은 콘솔에 노출되지 않는다.
+
+      OLIVE_AUDIT_DIR 은 application.yml 의 olive.audit.dir 로 오버라이드한다
+      (없으면 프로세스 CWD 기준 log/). 통합 테스트는 build/tmp/audit-it 로 격리.
+    -->
+
+    <springProperty scope="context" name="OLIVE_AUDIT_DIR"
+                    source="olive.audit.dir" defaultValue="log"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [traceId=%X{traceId:-}] %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!--
+      <file> 을 생략하면 RollingFileAppender 가 fileNamePattern 의 활성 파일을
+      직접 쓰기 대상으로 사용 — 즉 오늘 작성된 라인이 곧장 audit-YYYY-MM-DD.log 에
+      들어간다(rollover 를 기다릴 필요 없음).
+    -->
+    <appender name="AUDIT_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${OLIVE_AUDIT_DIR}/audit-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>90</maxHistory>
+            <totalSizeCap>2GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeMdcKeyName>traceId</includeMdcKeyName>
+        </encoder>
+    </appender>
+
+    <!--
+      audit 전용 logger — additivity=false 로 콘솔/루트 appender 로 흘러가지 않게.
+      OLV-130 의 Promtail/Filebeat 등은 ${OLIVE_AUDIT_DIR}/audit-*.log 파일을 직접 읽는다.
+    -->
+    <logger name="olive.audit" level="INFO" additivity="false">
+        <appender-ref ref="AUDIT_FILE"/>
+    </logger>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+</configuration>

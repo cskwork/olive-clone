@@ -1,0 +1,15 @@
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100    49    0    49    0     0    523      0 --:--:-- --:--:-- --:--:--   526
+HTTP/1.1 200 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 0
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Content-Type: application/vnd.spring-boot.actuator.v3+json
+Transfer-Encoding: chunked
+Date: Sun, 10 May 2026 08:14:05 GMT
+
+{"status":"UP","groups":["liveness","readiness"]}

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.olive.commerce.common.security.JwtTokenProviderTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-05-10T11:07:34" hostname="chaeseong-gug-ui-MacBookPro.local" time="0.066">
+  <properties/>
+  <testcase name="issueAccess_setsTypAccessAndRoleClaim()" classname="com.olive.commerce.common.security.JwtTokenProviderTest" time="0.051"/>
+  <testcase name="issueRefresh_setsTypRefreshAndJti()" classname="com.olive.commerce.common.security.JwtTokenProviderTest" time="0.002"/>
+  <testcase name="issueAccess_roundTrip_decodesSameClaims()" classname="com.olive.commerce.common.security.JwtTokenProviderTest" time="0.003"/>
+  <testcase name="parseAccess_refreshTokenRejected()" classname="com.olive.commerce.common.security.JwtTokenProviderTest" time="0.003"/>
+  <testcase name="parseAccess_tamperedSignatureRejected()" classname="com.olive.commerce.common.security.JwtTokenProviderTest" time="0.004"/>
+  <testcase name="issueAccess_expiredToken_isRejected()" classname="com.olive.commerce.common.security.JwtTokenProviderTest" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

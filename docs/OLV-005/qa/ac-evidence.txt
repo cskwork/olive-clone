@@ -1,0 +1,68 @@
+# OLV-005 — AC 실측 응답 (MockMvc)
+
+## AC-1: GET /actuator/health (no auth)
+HTTP/1.1 200
+Content-Type: application/vnd.spring-boot.actuator.v3+json
+{
+  "status" : "UP",
+  "groups" : [ "liveness", "readiness" ]
+}
+
+## AC-2: GET /api/cart (no auth)
+HTTP/1.1 401
+Content-Type: application/json;charset=UTF-8
+{
+  "success" : false,
+  "error" : {
+    "code" : "AUTHENTICATION_REQUIRED",
+    "message" : "인증이 필요합니다.",
+    "path" : "/api/cart",
+    "traceId" : "e9a2cebe-861f-42aa-88e9-2e2d68d61773"
+  }
+}
+
+## AC-3: GET /api/cart (USER)
+HTTP/1.1 200
+Content-Type: application/json
+{
+  "success" : true,
+  "data" : {
+    "memberId" : 42,
+    "items" : [ ]
+  }
+}
+
+## AC-4a: POST /api/admin/products (USER) → 403
+HTTP/1.1 403
+Content-Type: application/json;charset=UTF-8
+{
+  "success" : false,
+  "error" : {
+    "code" : "ACCESS_DENIED",
+    "message" : "접근 권한이 없습니다.",
+    "path" : "/api/admin/products",
+    "traceId" : "1bbe5713-35f5-4dd7-b0be-4132ee58d08a"
+  }
+}
+
+## AC-4b: POST /api/admin/products (PRODUCT_ADMIN) → 201
+HTTP/1.1 201
+Content-Type: application/json
+{
+  "success" : true,
+  "data" : {
+    "role" : "PRODUCT_ADMIN",
+    "createdBy" : 7
+  }
+}
+
+## Hierarchy: POST /api/admin/products (SUPER_ADMIN) → 201
+HTTP/1.1 201
+Content-Type: application/json
+{
+  "success" : true,
+  "data" : {
+    "role" : "SUPER_ADMIN",
+    "createdBy" : 1
+  }
+}

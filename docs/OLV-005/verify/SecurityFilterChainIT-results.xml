@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.olive.commerce.common.security.SecurityFilterChainIT" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-05-10T11:03:16" hostname="chaeseong-gug-ui-MacBookPro.local" time="0.783">
+  <properties/>
+  <testcase name="actuatorHealth_isPublic_returns200()" classname="com.olive.commerce.common.security.SecurityFilterChainIT" time="0.597"/>
+  <testcase name="apiCart_withTamperedToken_returns401()" classname="com.olive.commerce.common.security.SecurityFilterChainIT" time="0.082"/>
+  <testcase name="apiAdminProducts_withCsManagerToken_passesUrlButFailsMethodSecurity_returns403()" classname="com.olive.commerce.common.security.SecurityFilterChainIT" time="0.036"/>
+  <testcase name="apiCart_withoutToken_returns401_andErrorEnvelope()" classname="com.olive.commerce.common.security.SecurityFilterChainIT" time="0.004"/>
+  <testcase name="apiAdminProducts_withUserToken_returns403_andErrorEnvelope()" classname="com.olive.commerce.common.security.SecurityFilterChainIT" time="0.014"/>
+  <testcase name="apiAdminProducts_withSuperAdminToken_passesHierarchy_returns201()" classname="com.olive.commerce.common.security.SecurityFilterChainIT" time="0.018"/>
+  <testcase name="apiCart_withUserToken_returns200()" classname="com.olive.commerce.common.security.SecurityFilterChainIT" time="0.014"/>
+  <testcase name="apiAuth_login_isPublic_returns200()" classname="com.olive.commerce.common.security.SecurityFilterChainIT" time="0.004"/>
+  <testcase name="apiAdminProducts_withProductAdminToken_returns201()" classname="com.olive.commerce.common.security.SecurityFilterChainIT" time="0.007"/>
+  <system-out><![CDATA[20:03:14.223 [Test worker] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [com.olive.commerce.common.security.SecurityFilterChainIT]: SecurityFilterChainIT does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+20:03:14.291 [Test worker] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration com.olive.commerce.CommerceBackendApplication for test class com.olive.commerce.common.security.SecurityFilterChainIT
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v3.3.5)
+
+2026-05-10 20:03:14.602 INFO  [traceId=] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-05-10 20:03:14.628 INFO  [traceId=] c.o.c.c.s.SecurityFilterChainIT - Starting SecurityFilterChainIT using Java 21.0.11 with PID 2861 (started by danny in /Users/danny/symphony_workspaces/OLV-005)
+2026-05-10 20:03:14.629 INFO  [traceId=] c.o.c.c.s.SecurityFilterChainIT - No active profile set, falling back to 1 default profile: "default"
+2026-05-10 20:03:15.773 INFO  [traceId=] o.s.b.a.e.web.EndpointLinksResolver - Exposing 2 endpoints beneath base path '/actuator'
+2026-05-10 20:03:16.223 INFO  [traceId=] o.s.b.t.m.w.SpringBootMockServletContext - Initializing Spring TestDispatcherServlet ''
+2026-05-10 20:03:16.223 INFO  [traceId=] o.s.t.w.s.TestDispatcherServlet - Initializing Servlet ''
+2026-05-10 20:03:16.224 INFO  [traceId=] o.s.t.w.s.TestDispatcherServlet - Completed initialization in 1 ms
+2026-05-10 20:03:16.268 INFO  [traceId=] c.o.c.c.s.SecurityFilterChainIT - Started SecurityFilterChainIT in 1.916 seconds (process running for 2.507)
+]]></system-out>
+  <system-err><![CDATA[WARNING: A Java agent has been loaded dynamically (/Users/danny/.gradle/caches/modules-2/files-2.1/net.bytebuddy/byte-buddy-agent/1.14.19/154da3a65b4f4a909d3e5bdec55d1b2b4cbb6ce1/byte-buddy-agent-1.14.19.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+]]></system-err>
+</testsuite>

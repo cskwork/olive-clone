@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.olive.commerce.common.web.RequestIdFilterTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-05-10T11:07:35" hostname="chaeseong-gug-ui-MacBookPro.local" time="0.147">
+  <properties/>
+  <testcase name="clearsMdcAfterRequest_evenIfDownstreamThrows()" classname="com.olive.commerce.common.web.RequestIdFilterTest" time="0.001"/>
+  <testcase name="rejectsMalformedHeader_byGeneratingFresh()" classname="com.olive.commerce.common.web.RequestIdFilterTest" time="0.134"/>
+  <testcase name="echoesIncomingRequestId_whenHeaderProvided()" classname="com.olive.commerce.common.web.RequestIdFilterTest" time="0.002"/>
+  <testcase name="generatesUuid_whenHeaderMissing()" classname="com.olive.commerce.common.web.RequestIdFilterTest" time="0.007"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

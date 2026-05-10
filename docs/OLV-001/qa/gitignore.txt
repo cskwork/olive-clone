@@ -1,0 +1,22 @@
+# Build output
+build/
+out/
+.gradle/
+
+# Logs
+*.log
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+
+# Local environment & secrets
+.env
+.env.*
+application-local.yml
+
+# OS
+.DS_Store

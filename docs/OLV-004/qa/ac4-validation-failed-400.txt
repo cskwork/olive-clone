@@ -1,0 +1,5 @@
+HTTP 400
+X-Request-Id: b57014c4-258d-40c9-ad90-fe1e51a285fe
+Content-Type: application/json
+
+{"success":false,"error":{"code":"VALIDATION_FAILED","message":"요청 본문 검증에 실패했습니다.","path":"/test/echo","traceId":"b57014c4-258d-40c9-ad90-fe1e51a285fe","fieldErrors":[{"field":"name","message":"must not be blank","rejectedValue":""}]}}

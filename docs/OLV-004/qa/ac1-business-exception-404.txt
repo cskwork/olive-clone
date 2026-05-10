@@ -1,0 +1,5 @@
+HTTP 404
+X-Request-Id: 11111111-1111-1111-1111-111111111111
+Content-Type: application/json
+
+{"success":false,"error":{"code":"MEMBER_NOT_FOUND","message":"id=42","path":"/test/member-not-found","traceId":"11111111-1111-1111-1111-111111111111"}}

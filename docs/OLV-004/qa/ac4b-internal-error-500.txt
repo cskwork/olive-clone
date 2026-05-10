@@ -1,0 +1,5 @@
+HTTP 500
+X-Request-Id: 94f5b4c7-7434-42fa-ba84-bb4e81e981b9
+Content-Type: application/json
+
+{"success":false,"error":{"code":"INTERNAL_ERROR","message":"서버 내부 오류가 발생했습니다.","path":"/test/boom","traceId":"94f5b4c7-7434-42fa-ba84-bb4e81e981b9"}}
