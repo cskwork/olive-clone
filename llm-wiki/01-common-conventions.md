@@ -52,5 +52,8 @@
 - 2026-05-10 | OLV-004 | `@SpringBootTest` 가 SecurityConfig 를 component scan 으로 가져갈 때, `webEnvironment=NONE` + `SecurityFilterAutoConfiguration` 제외 조합은 `HttpSecurity` 빈 부재로 `securityFilterChain` 메서드 autowire 가 깨진다. audit IT 는 `webEnvironment=MOCK` 으로 servlet 컨텍스트만 띄워 회피 — DB 자동설정 3종(DataSource/JPA/Flyway)·UserDetailsService 는 여전히 제외 가능.
 - 2026-05-10 | OLV-004 | LogstashEncoder 가 logback `<springProperty>` context 변수(`OLIVE_AUDIT_DIR`)를 JSON 필드로 자동 포함시킨다. 향후 OLV-130 에서 노이즈 제거가 필요하면 `<excludeMdcKeyName>` / `<excludeContextProperties>` 패턴으로 차단 — 현재는 디버깅 도움이 되어 유지.
 - 2026-05-10 | OLV-004 | `${olive.audit.dir:-log}` 의 default 가 프로세스 CWD 기준 `log/`. K8s 배포 시 OLV-130 의 Helm values 가 절대경로(예 `/var/log/olive/audit`)를 주입할 예정.
+- 2026-05-11 | OLV-021 | Public API는 내부 필드를 노출하지 않음. `PublicTreeNode`에는
+  `sortOrder`가 없고, `AdminUpdateRequest`에는 `slug`가 없음(명세).
+  테스트는 공개 필드만으로 검증해야 함.
 
-**Last updated:** 2026-05-10 by OLV-004.
+**Last updated:** 2026-05-11 by OLV-021.
