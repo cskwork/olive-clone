@@ -17,6 +17,7 @@ import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
 import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchBucketException;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 @Configuration
 @EnableConfigurationProperties(AwsS3Properties.class)
@@ -51,6 +52,21 @@ public class AwsS3Config {
             properties.bucket()
         );
         return client;
+    }
+
+    @Bean
+    public S3Presigner s3Presigner(AwsS3Properties properties) {
+        boolean localMode = properties.endpoint() != null && !properties.endpoint().isBlank();
+
+        S3Presigner.Builder builder = S3Presigner.builder()
+            .region(Region.of(properties.region()))
+            .credentialsProvider(resolveCredentials(properties));
+
+        if (localMode) {
+            builder.endpointOverride(URI.create(properties.endpoint()));
+        }
+
+        return builder.build();
     }
 
     private AwsCredentialsProvider resolveCredentials(AwsS3Properties properties) {

@@ -18,8 +18,10 @@ import java.util.Map;
  * - @PreAuthorize 는 그 안에서 PRODUCT_ADMIN 또는 (hierarchy 의해 SUPER_ADMIN) 만 통과.
  *
  * 실제 admin 상품 등록은 OLV-022 가 대체한다.
+ *
+ * OLV-022 구현 완료로 비활성화 (@RestController 제거됨)
  */
-@RestController
+// @RestController // OLV-022: ProductAdminController로 대체됨
 @RequestMapping("/api/admin/products")
 public class AdminProductPlaceholderController {
 
