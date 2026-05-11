@@ -18,6 +18,12 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
 
+aws:
+  s3:
+    # endpoint / access-key / secret-key 는 프로필별로 주입한다 (local: LocalStack, prod: 실제 AWS).
+    region: ap-northeast-2
+    bucket: commerce-images-local
+
 olive:
   security:
     jwt:
@@ -26,6 +32,8 @@ olive:
       refresh-ttl: P14D
       private-key-location: classpath:keys/app.key
       public-key-location: classpath:keys/app.pub
+  opensearch:
+    uris: http://localhost:9200
 
 server:
   port: 8080

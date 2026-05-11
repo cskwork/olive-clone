@@ -25,10 +25,13 @@ repositories {
 }
 
 extra["testcontainersVersion"] = "1.21.4"
+extra["awsSdkVersion"] = "2.28.29"
+extra["opensearchClientVersion"] = "2.13.0"
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
     implementation("org.springframework.boot:spring-boot-starter-validation")
@@ -41,6 +44,11 @@ dependencies {
 
     implementation("net.logstash.logback:logstash-logback-encoder:7.4")
 
+    implementation("software.amazon.awssdk:s3")
+
+    implementation("org.opensearch.client:opensearch-rest-client:${property("opensearchClientVersion")}")
+    implementation("org.opensearch.client:opensearch-java:${property("opensearchClientVersion")}")
+
     runtimeOnly("org.postgresql:postgresql")
 
     compileOnly("org.projectlombok:lombok")
@@ -51,11 +59,14 @@ dependencies {
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:postgresql")
+    testImplementation("org.testcontainers:localstack")
+    testImplementation("org.opensearch:opensearch-testcontainers:2.1.3")
 }
 
 dependencyManagement {
     imports {
         mavenBom("org.testcontainers:testcontainers-bom:${property("testcontainersVersion")}")
+        mavenBom("software.amazon.awssdk:bom:${property("awsSdkVersion")}")
     }
 }
 
