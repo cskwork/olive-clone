@@ -49,5 +49,14 @@ and the PG callback as the source of truth (PRD §6.6, §8.4, §15.1, §20.4).
 
 - 2026-05-10 | seed | First PG adapter is a **mock** — configurable to
   return success / fail / timeout for QA. Real PG (Toss) wired later.
+- 2026-05-12 | OLV-070 | Payment schema V9__payment.sql applied. 3 tables
+  (payments, payment_transactions, refunds) with FK constraints, idempotency
+  UNIQUE constraints, CHECK constraints for status/method/kind enums, 6 indexes.
+  Replay protection via (payment_id, kind, idempotency_key) UNIQUE on
+  payment_transactions. Full PG response stored as JSONB for post-mortem.
+- 2026-05-12 | OLV-071 | PgClient interface + MockPgClient implementation enabled.
+  Behaviour field controls approve/fail/timeout modes for QA testing without app
+  restart. @ConditionalOnProperty separates PG implementations by environment.
+  PgTimeoutException added. ErrorCode extended with PG_TIMEOUT/PG_FAILED/PG_WEBHOOK_INVALID.
 
-**Last updated:** 2026-05-10 by seed.
+**Last updated:** 2026-05-12 by OLV-071.

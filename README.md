@@ -30,13 +30,26 @@ Olive Young 스타일의 health & beauty 커머스 백엔드 — Spring Boot 3.x
 기동 후 헬스 체크:
 
 ```bash
-curl -s http://localhost:8080/actuator/health
+curl -s http://localhost:8080/actuator/health/liveness
 # → {"status":"UP"}
 ```
 
+### Health Endpoints
+
+| Endpoint | Purpose | Failure Behavior |
+|---|---|---|
+| `/actuator/health/liveness` | **Liveness** - 프로세스存活 확인 | 가벼움, 외부 호출 없음. 실패 시 파드 재시작 |
+| `/actuator/health/readiness` | **Readiness** - 트래픽 수락 가능 여부 | PG/Redis/OpenSearch 모두 UP이어야 함. 실패 시 트래픽 우회 |
+| `/actuator/health/batch` | **Batch** - outbox DLQ 상태 | `dlq=true` 레코드 수 보고. 있으면 DEGRADED |
+
+**Contract**:
+- **Liveness** = 프로세스가 살아있음 (JVM 동작 중). DB/Redis가 멈춰도 UP.
+- **Readiness** = 트래픽 받을 준비 완료. PG 아웃티지 = 총 장애로 503, Redis/OpenSearch 아웃티지 = 부분 장애로 503.
+- **Batch** = 배치 작업 상태. DLQ 누적 시 운영자 알림 용도.
+
 이번 부트스트랩 단계에서는 데이터베이스가 의도적으로 비활성화되어 있다
 (`spring.autoconfigure.exclude=DataSourceAutoConfiguration`). PostgreSQL과
-Flyway는 OLV-002 티켓에서 도입된다.
+Flyway는 OLV-002 티켓에서 도입되었다.
 
 ## 패키지 구조
 

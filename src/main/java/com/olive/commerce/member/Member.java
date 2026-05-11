@@ -63,4 +63,12 @@ public class Member {
     public Long getGradeId() { return gradeId; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
+
+    /** 프로필 정보 수정 (이름, 전화번호) */
+    public void updateProfile(String name, String phone) {
+        this.name = name;
+        if (phone != null) {
+            this.phone = phone;
+        }
+    }
 }

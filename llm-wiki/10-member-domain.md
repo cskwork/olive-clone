@@ -111,4 +111,26 @@ primary key for orders, reviews, coupons, points — get this right.
   USER 로 하드코드 — refresh 는 단지 "이 회원의 새 access 발급권" 이지 권한
   자체를 운반하지 않는다 (access 발급 시 DB / 사용자 상태로부터 다시 결정).
 
-**Last updated:** 2026-05-10 by OLV-011.
+- 2026-05-10 | OLV-011 | `JwtTokenProvider#parseRefresh` 추가. 기존 `parseAccess` 와
+  공유 헬퍼로 리팩터: typ 비교를 매개변수화. refresh 토큰의 role claim 은 없으므로
+  USER 로 하드코드 — refresh 는 단지 "이 회원의 새 access 발급권" 이지 권한
+  자체를 운반하지 않는다 (access 발급 시 DB / 사용자 상태로부터 다시 결정).
+- 2026-05-11 | OLV-012 | **프로필 조회/수정 API 완성** — `GET/PATCH /api/me` 완료.
+  ProfileResponse/UpdateProfileRequest DTO 추가; `Member.updateProfile(name, phone)`
+  엔티티 메서드로 캡슐화; phone nullable 시 기존 값 유지 로직.
+- 2026-05-11 | OLV-012 | **배송지 CRUD 완성** — MemberAddress 엔티티 + Repository
+  (`findByMemberIdOrderByDefaultFirst`, `clearDefaultByMemberId`, `countByMemberId`) +
+  MemberAddressService + MemberAddressController. 소유권 검증은 `findOwned()`
+  명시적 `memberId` 비교로 — `member_id` FK가 있어도 URL 경로의 `{id}`가
+  접속자의 것인지 애플리케이션 계층에서 강제 (OLV-012 AC.4).
+- 2026-05-11 | OLV-012 | **기본 배송지 트랜잭션** — `@Transactional`로
+  `clearDefaultByMemberId` → `save` 순차 실행. 두 쿼리 사이의 race를 막기 위해
+  한 트랜잭션 내에서 원자성 보장. Partial Unique Index
+  `uniq_member_addresses_default_per_member`가 DB 레벨에서 1건 강제하지만,
+  application-level "기존 default 해제"는 명시적 트랜잭션으로 보호.
+- 2026-05-11 | OLV-012 | **컨트롤러 분리 결정** — 프로필(MemberProfileController)과
+  배송지(MemberAddressController)를 분리. 향후 배송지 관련 로직(우편번호 검색,
+  배송 가능 여부 확인)이 추가될 때 독립된 컨트롤러가 유리. `/api/me`와
+  `/api/me/addresses`로 자연스러운 경로 분리.
+
+**Last updated:** 2026-05-11 by OLV-012.

@@ -25,5 +25,7 @@ aws:
     secret-key: test
 
 olive:
+  pg:
+    provider: mock
   opensearch:
     uris: http://localhost:9200

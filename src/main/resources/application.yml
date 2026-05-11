@@ -13,6 +13,7 @@ spring:
       hibernate:
         jdbc:
           time_zone: UTC
+          non_contextual_lobs: true
   flyway:
     enabled: true
     locations: classpath:db/migration
@@ -45,6 +46,13 @@ management:
         include: health,info
   endpoint:
     health:
-      show-details: never
+      show-details: when-authorized
       probes:
         enabled: true
+      group:
+        readiness:
+          include: readinessState,postgres,redis,openSearch
+          show-details: always
+        liveness:
+          include: livenessState,ping
+          show-details: always

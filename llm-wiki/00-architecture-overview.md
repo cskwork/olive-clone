@@ -60,5 +60,10 @@ independent services later (PRD §21.1).
   `V1__init_baseline.sql` (placeholder) + Testcontainers `@ServiceConnection`
   공유 베이스(`PostgresIntegrationSupport`)가 후속 도메인 티켓의 진입점.
   세부는 `02-persistence-baseline.md`.
+- 2026-05-11 | OLV-131 | Health endpoints 구현: `/actuator/health/liveness`(liveness),
+  `/actuator/health/readiness`(PG+Redis+OpenSearch), `/actuator/health/batch`(DLQ).
+  `PostgresHealthIndicator`, `RedisHealthIndicator`, `OpenSearchHealthIndicator`,
+  `BatchHealthIndicator` 구현. `application.yml`에 `management.endpoint.health.group.readiness`
+  설정 추가. README.md에 Health Endpoints 섹션 문서화.
 
-**Last updated:** 2026-05-10 by OLV-002.
+**Last updated:** 2026-05-11 by OLV-131.
