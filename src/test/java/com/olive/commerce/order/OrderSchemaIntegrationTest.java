@@ -50,16 +50,14 @@ class OrderSchemaIntegrationTest extends PostgresIntegrationSupport {
     @Test
     void ordersTableExistsWithConstraints() {
         // Check orders table has status check constraint
-        @SuppressWarnings("unchecked")
-        var constraints = em.createNativeQuery("""
+        String statusCheck = (String) em.createNativeQuery("""
                 SELECT pg_get_constraintdef(oid)
                 FROM pg_constraint
                 WHERE conrelid = 'orders'::regclass
                   AND conname = 'orders_status_check'
-                """).getResultList();
+                """).getSingleResult();
 
-        assertThat(constraints).isNotEmpty();
-        String statusCheck = ((Object[]) constraints.get(0))[0].toString();
+        assertThat(statusCheck).isNotNull();
         assertThat(statusCheck).contains("CREATED");
         assertThat(statusCheck).contains("PAYMENT_PENDING");
         assertThat(statusCheck).contains("PAID");
