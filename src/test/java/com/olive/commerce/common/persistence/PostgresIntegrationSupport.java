@@ -1,10 +1,9 @@
 package com.olive.commerce.common.persistence;
 
-import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 
 /**
@@ -20,6 +19,9 @@ import org.testcontainers.containers.PostgreSQLContainer;
  */
 @ActiveProfiles("test")
 @Import(FlywayTestConfig.class)
+@TestPropertySource(properties = {
+    "spring.jpa.hibernate.ddl-auto=none"
+})
 public abstract class PostgresIntegrationSupport {
 
     @ServiceConnection
