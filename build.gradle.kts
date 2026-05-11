@@ -27,6 +27,7 @@ repositories {
 extra["testcontainersVersion"] = "1.21.4"
 extra["awsSdkVersion"] = "2.28.29"
 extra["opensearchClientVersion"] = "2.13.0"
+extra["redissonVersion"] = "3.37.0"
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
@@ -48,6 +49,8 @@ dependencies {
 
     implementation("org.opensearch.client:opensearch-rest-client:${property("opensearchClientVersion")}")
     implementation("org.opensearch.client:opensearch-java:${property("opensearchClientVersion")}")
+
+    implementation("org.redisson:redisson:${property("redissonVersion")}")
 
     runtimeOnly("org.postgresql:postgresql")
 
