@@ -1,0 +1,3 @@
+<testsuite name="com.olive.commerce.common.config.AwsS3IntegrationTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-05-10T14:00:21" hostname="chaeseong-gug-ui-MacBookPro.local" time="0.56">
+<testsuite name="com.olive.commerce.common.config.OpenSearchIntegrationTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-05-10T14:00:30" hostname="chaeseong-gug-ui-MacBookPro.local" time="0.104">
+<testsuite name="com.olive.commerce.common.config.RedisIntegrationTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-05-10T14:00:31" hostname="chaeseong-gug-ui-MacBookPro.local" time="0.181">

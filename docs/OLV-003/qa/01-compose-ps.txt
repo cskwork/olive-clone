@@ -1,0 +1,5 @@
+NAME                  STATUS                    PORTS
+commerce-localstack   Up 24 seconds (healthy)   0.0.0.0:4566->4566/tcp, [::]:4566->4566/tcp
+commerce-opensearch   Up 24 seconds (healthy)   0.0.0.0:9200->9200/tcp, [::]:9200->9200/tcp
+commerce-postgres     Up 24 seconds (healthy)   0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp
+commerce-redis        Up 24 seconds (healthy)   0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp

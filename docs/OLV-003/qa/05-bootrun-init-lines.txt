@@ -1,0 +1,4 @@
+2026-05-10 23:00:56.422 INFO  [traceId=] c.o.c.common.config.RedisConfig - Redis client initialized (host=localhost, port=6379)
+2026-05-10 23:00:56.759 INFO  [traceId=] c.o.c.common.config.AwsS3Config - S3 client initialized (endpoint=http://localhost:4566, region=ap-northeast-2, bucket=commerce-images-local)
+2026-05-10 23:00:56.847 INFO  [traceId=] c.o.c.common.config.OpenSearchConfig - OpenSearch client initialized (uris=[http://localhost:9200])
+2026-05-10 23:00:57.806 INFO  [traceId=] c.o.c.CommerceBackendApplication - Started CommerceBackendApplication in 3.605 seconds (process running for 3.798)
