@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.olive.commerce.order.OrderSchemaIntegrationTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-05-11T14:20:18" hostname="chaeseong-gug-ui-MacBookPro.local" time="0.489">
+  <testcase name="ac3_Index_MemberIdCreatedAtDesc_Exists()" classname="com.olive.commerce.order.OrderSchemaIntegrationTest" time="0.38"/>
+  <testcase name="orderNoGenerator_NoCollisionsUnderConcurrentInserts()" classname="com.olive.commerce.order.OrderSchemaIntegrationTest" time="0.059"/>
+  <testcase name="orderPriceSummariesTableExistsWithUniqueOrderId()" classname="com.olive.commerce.order.OrderSchemaIntegrationTest" time="0.004"/>
+  <testcase name="orderItemsTableExistsWithSnapshotColumns()" classname="com.olive.commerce.order.OrderSchemaIntegrationTest" time="0.009"/>
+  <testcase name="repositoryTest_InsertsOrderWithThreeLineItems_ReadsBack()" classname="com.olive.commerce.order.OrderSchemaIntegrationTest" time="0.016"/>
+  <testcase name="orderStatusHistoriesTableExistsWithChangedByKindCheck()" classname="com.olive.commerce.order.OrderSchemaIntegrationTest" time="0.003"/>
+  <testcase name="ac3_Index_OrderNo_Unique_Exists()" classname="com.olive.commerce.order.OrderSchemaIntegrationTest" time="0.002"/>
+  <testcase name="ordersTableExistsWithConstraints()" classname="com.olive.commerce.order.OrderSchemaIntegrationTest" time="0.003"/>
+  <testcase name="ac3_Index_StatusCreatedAt_Exists()" classname="com.olive.commerce.order.OrderSchemaIntegrationTest" time="0.003"/>
+  <testcase name="v7MigrationIsApplied()" classname="com.olive.commerce.order.OrderSchemaIntegrationTest" time="0.003"/>
+</testsuite>
