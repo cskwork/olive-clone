@@ -48,5 +48,22 @@ moves to OpenSearch as soon as catalog scales.
   `RestClient` + `RestClientTransport` + `JacksonJsonpMapper`) 1개로 노출
   (`llm-wiki/03-infra-baseline.md`). 본 도메인 티켓의 인덱서 워커는 이 빈을
   outbox 드레이너에서만 호출하고, 상품 쓰기 패스에 직접 두지 않는다.
+- 2026-05-11 | OLV-100 | `products` 인덱스 + outbox 동기 파이프라인 구축.
+  - 매핑은 PRD §13.2/wiki 스펙 9 필드. 분석기는 **standard** (도커 기본 이미지에
+    `nori` 미포함). 한국어 검색 품질 개선은 follow-up — 이미지에 nori plugin을
+    추가 빌드한 뒤 매핑 변경.
+  - `OpenSearchConfig`에 클라이언트 측 connect=2s, socket=3s 타임아웃 추가.
+    pause로 hang 시 워커 스레드가 영원히 막히는 운영 위험을 IT(`ProductSearchSyncIT
+    .openSearchDown_*`)가 잡아냄. 이 timeout이 없으면 fixedDelay 폴링이 의미 없음.
+  - `@EnableScheduling`은 `SchedulingConfig` (`@Profile("!test")`)로 분리. JVM-싱글톤
+    Postgres + 다중 SpringBootTest 컨텍스트 캐시 조합에서 다른 컨텍스트의 워커가
+    PENDING row를 가로채 OLV-100 IT가 비결정적으로 실패하던 문제 해결. IT는
+    `worker.drainOnce()`를 수동 호출하여 결정론적 검증.
+  - `tags`/`rating`/`salesCount`/`reviewCount`는 소스 도메인 미구현으로 빈 리스트/
+    0 디폴트. 도메인이 생기는 ticket에서 활성화.
+  - DLQ 임계값 5회. DLQ 해제 어드민은 follow-up. 단일 productId 수동 재인덱스는
+    `POST /api/admin/search/reindex/{productId}` (outbox 경유, 202 Accepted).
+  - 전체 재색인: `./gradlew reindexProducts` — `reindex` 프로필로 부팅 후
+    100건 페이지로 bulk index + `SpringApplication.exit`.
 
-**Last updated:** 2026-05-10 by OLV-003.
+**Last updated:** 2026-05-11 by OLV-100.

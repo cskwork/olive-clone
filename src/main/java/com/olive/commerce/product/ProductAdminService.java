@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.olive.commerce.common.audit.AuditLogger;
 import com.olive.commerce.common.error.BusinessException;
 import com.olive.commerce.common.error.ErrorCode;
+import com.olive.commerce.search.ProductIndexEnqueuer;
 import jakarta.persistence.EntityManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +41,7 @@ public class ProductAdminService {
     private final EntityManager em;
     private final AuditLogger auditLogger;
     private final ApplicationEventPublisher eventPublisher;
+    private final ProductIndexEnqueuer indexEnqueuer;
 
     public ProductAdminService(
         ProductRepository productRepository,
@@ -50,7 +52,8 @@ public class ProductAdminService {
         CategoryRepository categoryRepository,
         EntityManager em,
         AuditLogger auditLogger,
-        ApplicationEventPublisher eventPublisher
+        ApplicationEventPublisher eventPublisher,
+        ProductIndexEnqueuer indexEnqueuer
     ) {
         this.productRepository = productRepository;
         this.productOptionRepository = productOptionRepository;
@@ -61,6 +64,7 @@ public class ProductAdminService {
         this.em = em;
         this.auditLogger = auditLogger;
         this.eventPublisher = eventPublisher;
+        this.indexEnqueuer = indexEnqueuer;
     }
 
     /**
@@ -124,6 +128,8 @@ public class ProductAdminService {
 
         // OLV-023: 캐시 무효화 이벤트 발행
         eventPublisher.publishEvent(new ProductUpdatedEvent(saved.getId()));
+        // OLV-100: 검색 인덱스 동기화 outbox enqueue (같은 트랜잭션).
+        indexEnqueuer.enqueueProductIndexSync(saved.getId());
 
         return buildAdminResponse(saved);
     }
@@ -207,6 +213,8 @@ public class ProductAdminService {
 
         // OLV-023: 캐시 무효화 이벤트 발행
         eventPublisher.publishEvent(new ProductUpdatedEvent(updated.getId()));
+        // OLV-100: 검색 인덱스 동기화 outbox enqueue.
+        indexEnqueuer.enqueueProductIndexSync(updated.getId());
 
         return buildAdminResponse(updated);
     }
@@ -234,6 +242,8 @@ public class ProductAdminService {
 
         // OLV-023: 캐시 무효화 이벤트 발행
         eventPublisher.publishEvent(new ProductUpdatedEvent(productId));
+        // OLV-100: 검색 인덱스 동기화 outbox enqueue.
+        indexEnqueuer.enqueueProductIndexSync(productId);
 
         return ProductDtos.OptionResponse.from(saved);
     }
@@ -261,6 +271,8 @@ public class ProductAdminService {
 
         // OLV-023: 캐시 무효화 이벤트 발행
         eventPublisher.publishEvent(new ProductUpdatedEvent(productId));
+        // OLV-100: 검색 인덱스 동기화 outbox enqueue.
+        indexEnqueuer.enqueueProductIndexSync(productId);
 
         return ProductDtos.OptionResponse.from(updated);
     }

@@ -44,5 +44,19 @@ table is the durability mechanism in between.
   created_at, processed_at)`.
 - 2026-05-10 | seed | Drainer = `@Scheduled(fixedDelay = 1000)` for now;
   swap for Debezium / Kafka Connect when traffic warrants.
+- 2026-05-11 | OLV-100 | Flyway V8로 `outbox_events` 실제 생성. seed 스키마 +
+  `attempt_count INT`, `dlq BOOLEAN`, `last_error TEXT` 3 컬럼 추가 — DLQ + 재시도
+  메타데이터. status는 PENDING/IN_PROGRESS/DONE/FAILED 4 상태. 드레이너 스캔용
+  부분 인덱스 `(status='PENDING', dlq=false)` 1개, DLQ 어드민용 `(dlq=true)` 1개.
+- 2026-05-11 | OLV-100 | 첫 도메인 사용처는 `PRODUCT_INDEX_SYNC` (검색 인덱스).
+  같은 트랜잭션에서 `OutboxEventRepository.save(...)`로 enqueue — at-least-once.
+  드레이너는 `@Lock(PESSIMISTIC_WRITE)` + `jakarta.persistence.lock.timeout=-2`로
+  Postgres `SELECT FOR UPDATE SKIP LOCKED` 동작. 멀티 인스턴스 안전.
+- 2026-05-11 | OLV-100 | 드레이너는 claim(IN_PROGRESS) → 외부 호출 → finalize
+  (DONE 또는 attempt++) 2-단계 트랜잭션. 워커 충돌 시 IN_PROGRESS row가 남을 수
+  있음 — 별도 reaper는 follow-up.
+- 2026-05-11 | OLV-100 | `@EnableScheduling`은 `SchedulingConfig` (`@Profile
+  ("!test")`)로 분리. 다른 SpringBootTest 컨텍스트가 outbox row를 가로채는
+  test interference 회피. 테스트는 `worker.drainOnce()`를 수동 호출.
 
-**Last updated:** 2026-05-10 by seed.
+**Last updated:** 2026-05-11 by OLV-100.

@@ -101,3 +101,15 @@ flyway {
     password = System.getenv("FLYWAY_PASSWORD") ?: "commerce"
     locations = arrayOf("classpath:db/migration")
 }
+
+// OLV-100: ./gradlew reindexProducts — `reindex` 프로필을 활성화한 부팅으로
+// 전체 products 테이블을 OpenSearch에 bulk 색인하고 정상 종료한다.
+tasks.register<org.springframework.boot.gradle.tasks.run.BootRun>("reindexProducts") {
+    group = "application"
+    description = "Rebuild the OpenSearch products index from Postgres (OLV-100)."
+    mainClass.set("com.olive.commerce.CommerceBackendApplication")
+    classpath = sourceSets["main"].runtimeClasspath
+    args(
+        "--spring.profiles.active=" + (System.getenv("SPRING_PROFILES_ACTIVE") ?: "local,reindex")
+    )
+}

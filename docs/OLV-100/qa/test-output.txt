@@ -1,0 +1,40 @@
+==============================================================
+OLV-100 — QA test output (./gradlew test --tests "com.olive.commerce.search.*")
+==============================================================
+Run at: 2026-05-11 21:18 KST
+Build: BUILD SUCCESSFUL in 20s
+
+Tests run:
+  - ProductSearchSyncIT > enqueueAndDrain_reflectsProductInOpenSearch()
+    → OutboxEvent.status=DONE, OS doc 4 필드 검증 (productName, salePrice, status, categoryNames).
+  - ProductSearchSyncIT > priceUpdate_propagatesNewSalePriceInsideFiveSeconds()
+    → 가격 17,777 → OS 문서에 salePrice=17777 반영.
+  - ProductSearchSyncIT > openSearchDown_outboxAttemptsAccumulateAndNeverCrash()
+    → 컨테이너 pause 중 worker.drainOnce() 호출 → attempt_count=1, status=PENDING.
+       복구 후 재호출 → 같은 product가 OS에 색인 성공.
+
+==============================================================
+OLV-100 — Flyway V8 마이그레이션은 매 IT setUp에서 자동 적용된다
+(PostgresIntegrationSupport → FlywayTestConfig.flyway.migrate()).
+outbox_events 테이블 존재 + DELETE/INSERT 동작은 모든 IT가 의존.
+==============================================================
+
+==============================================================
+전체 ./gradlew test 결과 — 회귀 분류
+==============================================================
+- 174 tests total, 31 failed.
+- 본 티켓 신규 테스트: 3 / 3 통과.
+- 31 failures는 모두 본 티켓과 무관한 기존 회귀:
+  · Hibernate 6 + PostgreSQL "Unknown Types value" — :param IS NULL OR ... 패턴
+    (BrandRepository:17, ProductRepository:17, CategoryRepository 등). 본 티켓이
+    건드린 코드 없음.
+  · OLV-023의 cache 동작 미완성 (ProductPublicApiIT > getProductList_first*Cache,
+    adminUpdate_invalidatesDetailCache 등) — OLV-023은 현재 "In Progress".
+  · SecurityFilterChainIT, InventoryServiceConcurrentTest — 인프라/시큐리티 회귀,
+    본 티켓 범위 외.
+- 본 티켓이 회귀로 만든 테스트는 없음.
+
+검증된 파일별 기존 회귀 원인:
+  · src/main/java/com/olive/commerce/product/BrandRepository.java:17 — :name IS NULL
+  · src/main/java/com/olive/commerce/product/ProductRepository.java:17 — :status IS NULL
+  · src/main/java/com/olive/commerce/product/CategoryRepository.java — 동일 패턴 (별도 ticket 필요)
