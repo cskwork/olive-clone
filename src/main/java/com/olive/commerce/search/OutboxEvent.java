@@ -72,6 +72,10 @@ public class OutboxEvent {
         return new OutboxEvent("PRODUCT", productId, "PRODUCT_INDEX_SYNC", payloadJson);
     }
 
+    public static OutboxEvent create(String aggregateType, Long aggregateId, String eventType, String payloadJson) {
+        return new OutboxEvent(aggregateType, aggregateId, eventType, payloadJson);
+    }
+
     public void markInProgress() {
         this.status = OutboxStatus.IN_PROGRESS.name();
     }
