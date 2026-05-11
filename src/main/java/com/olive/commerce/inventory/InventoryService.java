@@ -46,6 +46,12 @@ public class InventoryService {
      *
      * <p>모든 아이템의 재고가 충분하면 **전부 예약**하고, 부족하면 **아무것도 예약하지 않는다** (ALL-or-NONE).
      *
+     * <p>락 전략 분기:
+     * <ul>
+     *   <li>기본: Redisson RLock (분산 락)</li>
+     *   <li>Fallback: {@code inventory.lock.fallbackToDb=true} 시 DB {@code SELECT ... FOR UPDATE}</li>
+     * </ul>
+     *
      * @param orderId 주문 ID
      * @param items    예약 아이템 목록 (optionId, qty)
      * @param ttl      예약 TTL (기본 15분)
@@ -56,6 +62,20 @@ public class InventoryService {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "Reserve items cannot be empty");
         }
 
+        // Feature flag: DB 락 fallback (AC5)
+        if (lockProperties.isFallbackToDb()) {
+            reserveWithDbLock(orderId, items, ttl);
+            return;
+        }
+
+        // Default: Redisson RLock 경로
+        reserveWithRedisLock(orderId, items, ttl);
+    }
+
+    /**
+     * Redisson RLock을 사용한 예약 (기본 경로).
+     */
+    private void reserveWithRedisLock(Long orderId, List<ReserveItem> items, Duration ttl) {
         // option_id 정렬 (deadlock 방지, PRD §10.2)
         List<Long> sortedOptionIds = items.stream()
                 .map(ReserveItem::optionId)
@@ -105,6 +125,8 @@ public class InventoryService {
     /**
      * Redis 다운 시 DB 락 fallback 경로 (PRD §15.4).
      * feature flag {@code inventory.lock.fallbackToDb=true}일 때만 사용된다.
+     *
+     * <p>{@code SELECT ... FOR UPDATE}로 DB 락 획득 후 예약 수행.
      */
     @Transactional
     public void reserveWithDbLock(Long orderId, List<ReserveItem> items, Duration ttl) {
@@ -112,8 +134,25 @@ public class InventoryService {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "Reserve items cannot be empty");
         }
 
-        // DB 락은 JPA PESSIMISTIC_WRITE로 처리
-        // Repository에서 @Lock(PESSIMISTIC_WRITE) 사용
+        // option_id 정렬 (deadlock 방지, PRD §10.2)
+        List<Long> sortedOptionIds = items.stream()
+                .map(ReserveItem::optionId)
+                .sorted()
+                .distinct()
+                .toList();
+
+        // 1. 모든 옵션에 대해 PESSIMISTIC_WRITE 락 획득 (검증 전)
+        // JPA 트랜잭션 내에서 락은 커밋까지 유지됨
+        for (Long optionId : sortedOptionIds) {
+            Inventory locked = inventoryRepository.findByProductOptionIdForUpdate(optionId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_OPTION_NOT_FOUND,
+                            "Inventory not found for option: " + optionId));
+            // 엔티티를 로드하기만 하면 락이 유지됨 (Hibernate 1차 캐시)
+        }
+
+        // 2. 락 획득 후 재고 검증 + 예약
+        // doReserve 내부의 findByProductOptionId는 같은 트랜잭션에서
+        // 이미 락이 걸린 엔티티를 반환함 (1차 캐시)
         doReserve(orderId, items, ttl);
     }
 

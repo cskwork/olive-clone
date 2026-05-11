@@ -1,5 +1,6 @@
 package com.olive.commerce.inventory;
 
+import com.olive.commerce.common.audit.AuditLogger;
 import com.olive.commerce.common.config.InventoryLockProperties;
 import com.olive.commerce.common.config.RedissonConfig;
 import com.olive.commerce.common.error.ErrorCode;
@@ -15,8 +16,10 @@ import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration;
 import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -49,9 +52,13 @@ import static org.assertj.core.api.Assertions.assertThat;
     DataSourceTransactionManagerAutoConfiguration.class,
     HibernateJpaAutoConfiguration.class
 })
-@Import({InventoryService.class, RedissonConfig.class, InventoryLockProperties.class})
+@Import({InventoryService.class, RedissonConfig.class})
+@EnableConfigurationProperties(InventoryLockProperties.class)
 @Testcontainers
 class InventoryServiceConcurrentTest extends PostgresIntegrationSupport {
+
+    @MockBean
+    private AuditLogger auditLogger;
 
     @Autowired
     private InventoryService inventoryService;
