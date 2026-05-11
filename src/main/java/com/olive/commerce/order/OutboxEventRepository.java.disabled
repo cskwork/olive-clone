@@ -1,0 +1,51 @@
+package com.olive.commerce.order;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.List;
+
+/**
+ * Outbox 이벤트 Repository (Order 도메인).
+ * <p>
+ * Note: 이 인터페이스는 search 패키지의 _OrderOutboxEventInternalRepository와 충돌을 피하기 위해
+ * Order_OrderOutboxEventInternalRepository라는 이름의 내부 인터페이스로 분리되었습니다.
+ * search 패키지의 공유 _OrderOutboxEventInternalRepository를 사용하세요.
+ */
+interface _Order_OrderOutboxEventInternalRepositoryInternal extends JpaRepository<_OrderOutboxEventInternal, Long> {
+
+    /**
+     * 처리 대기 중인 이벤트 목록 조회 (드레이너용).
+     * <p>
+     * FOR UPDATE SKIP LOCKED로 여러 워커가 동시에 처리해도 중복 없음.
+     */
+    @Query("""
+        SELECT e FROM _OrderOutboxEventInternal e
+        WHERE e.status = 'PENDING' AND e.dlq = false
+        ORDER BY e.id ASC
+        """)
+    List<_OrderOutboxEventInternal> findPendingEventsForDrain(@Param("limit") int limit);
+
+    /**
+     * DLQ 이벤트 목록 조회 (관리자용).
+     */
+    @Query("SELECT e FROM _OrderOutboxEventInternal e WHERE e.dlq = true ORDER BY e.createdAt DESC")
+    List<_OrderOutboxEventInternal> findDlqEvents();
+
+    /**
+     * aggregate_type과 aggregate_id로 이벤트 조회.
+     */
+    @Query("""
+        SELECT e FROM _OrderOutboxEventInternal e
+        WHERE e.aggregateType = :aggregateType
+        AND e.aggregateId = :aggregateId
+        AND e.eventType = :eventType
+        ORDER BY e.createdAt DESC
+        """)
+    List<_OrderOutboxEventInternal> findByAggregate(
+            @Param("aggregateType") String aggregateType,
+            @Param("aggregateId") Long aggregateId,
+            @Param("eventType") String eventType
+    );
+}

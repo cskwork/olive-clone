@@ -1,0 +1,114 @@
+package com.olive.commerce.order;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.Column;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import org.hibernate.annotations.CreationTimestamp;
+
+import java.time.OffsetDateTime;
+
+/**
+ * Outbox 이벤트 엔티티 (order 도메인).
+ * <p>
+ * Note: search 패키지의 OutboxEvent와 중복되므로 이 클래스는 사용되지 않습니다.
+ * search 패키지의 {@link com.olive.commerce.search.OutboxEvent}를 사용하세요.
+ *
+ * @deprecated search 패키지의 {@link com.olive.commerce.search.OutboxEvent}를 사용하세요.
+ */
+@Deprecated
+// @Entity - 제외됨: search 패키지의 공유 OutboxEvent 사용
+// @Table(name = "outbox_events") - 제외됨
+class _OrderOutboxEventInternal {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "aggregate_type", nullable = false, length = 50)
+    private String aggregateType;
+
+    @Column(name = "aggregate_id", nullable = false)
+    private Long aggregateId;
+
+    @Column(name = "event_type", nullable = false, length = 50)
+    private String eventType;
+
+    @Column(name = "payload_json", nullable = false, columnDefinition = "TEXT")
+    private String payloadJson;
+
+    @Column(name = "status", nullable = false, length = 20)
+    private OutboxStatus status = OutboxStatus.PENDING;
+
+    @Column(name = "attempt_count", nullable = false)
+    private int attemptCount = 0;
+
+    @Column(name = "dlq", nullable = false)
+    private boolean dlq = false;
+
+    @Column(name = "last_error", columnDefinition = "TEXT")
+    private String lastError;
+
+    @Column(name = "created_at", insertable = false, updatable = false)
+    @CreationTimestamp
+    private OffsetDateTime createdAt;
+
+    @Column(name = "processed_at")
+    private OffsetDateTime processedAt;
+
+    protected _OrderOutboxEventInternal() {}
+
+    private _OrderOutboxEventInternal(String aggregateType, Long aggregateId, String eventType, String payloadJson) {
+        this.aggregateType = aggregateType;
+        this.aggregateId = aggregateId;
+        this.eventType = eventType;
+        this.payloadJson = payloadJson;
+    }
+
+    public static _OrderOutboxEventInternal create(String aggregateType, Long aggregateId, String eventType, String payloadJson) {
+        return new _OrderOutboxEventInternal(aggregateType, aggregateId, eventType, payloadJson);
+    }
+
+    public void markInProgress() {
+        this.status = OutboxStatus.IN_PROGRESS;
+    }
+
+    public void markDone() {
+        this.status = OutboxStatus.DONE;
+        this.processedAt = OffsetDateTime.now();
+    }
+
+    public void markFailed(String error) {
+        this.status = OutboxStatus.FAILED;
+        this.lastError = error;
+        this.attemptCount++;
+        if (this.attemptCount >= 5) {
+            this.dlq = true;
+        }
+    }
+
+    // Getters
+    public Long getId() { return id; }
+    public String getAggregateType() { return aggregateType; }
+    public Long getAggregateId() { return aggregateId; }
+    public String getEventType() { return eventType; }
+    @JsonIgnore
+    public String getPayloadJson() { return payloadJson; }
+    public OutboxStatus getStatus() { return status; }
+    public int getAttemptCount() { return attemptCount; }
+    public boolean isDlq() { return dlq; }
+    public String getLastError() { return lastError; }
+    public OffsetDateTime getCreatedAt() { return createdAt; }
+    public OffsetDateTime getProcessedAt() { return processedAt; }
+
+    /**
+     * Outbox 상태 (PRD §12).
+     */
+    public enum OutboxStatus {
+        PENDING,      // 대기 중
+        IN_PROGRESS,  // 처리 중
+        DONE,         // 완료
+        FAILED        // 실패 (재시도 대기)
+    }
+}
