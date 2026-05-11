@@ -1,6 +1,9 @@
 package com.olive.commerce.common.persistence;
 
+import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.testcontainers.containers.PostgreSQLContainer;
 
@@ -16,6 +19,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
  * JVM 종료 시 Ryuk reaper 가 정리한다 — Testcontainers 공식 권장 패턴.
  */
 @ActiveProfiles("test")
+@Import(FlywayTestConfig.class)
 public abstract class PostgresIntegrationSupport {
 
     @ServiceConnection
