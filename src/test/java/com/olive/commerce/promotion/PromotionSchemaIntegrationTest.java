@@ -69,8 +69,8 @@ class PromotionSchemaIntegrationTest extends PostgresIntegrationSupport {
 
         assertThat(coupon[0]).isEqualTo("테스트 쿠폰");
         assertThat(coupon[1]).isEqualTo("FIXED_AMOUNT");
-        assertThat(coupon[2]).isEqualTo(new BigDecimal("5000"));
-        assertThat(coupon[3]).isEqualTo(new BigDecimal("10000"));
+        assertThat((BigDecimal) coupon[2]).isEqualByComparingTo("5000");
+        assertThat((BigDecimal) coupon[3]).isEqualByComparingTo("10000");
         assertThat(coupon[4]).isEqualTo("ACTIVE");
         assertThat(coupon[5]).isEqualTo(0);
         assertThat(coupon[6]).isEqualTo(1000);
@@ -137,10 +137,10 @@ class PromotionSchemaIntegrationTest extends PostgresIntegrationSupport {
 
     @Test
     void insertsAndReadsBackPromotionAndProducts() {
-        // 프로모션 생성
+        // 프로모션 생성 (PostgreSQL은 문자열을 JSONB로 자동 변환)
         Long promotionId = ((Number) em.createNativeQuery("""
                 INSERT INTO promotions (name, type, started_at, ended_at, discount_rule_json)
-                VALUES (:name, :type, now(), now() + INTERVAL '30 days', :rule::jsonb)
+                VALUES (:name, :type, now(), now() + INTERVAL '30 days', CAST(:rule AS JSONB))
                 RETURNING id
                 """)
                 .setParameter("name", "테스트 기획전")
@@ -230,7 +230,7 @@ class PromotionSchemaIntegrationTest extends PostgresIntegrationSupport {
                 .getSingleResult();
 
         assertThat(((Number) points[0]).longValue()).isEqualTo(memberId);
-        assertThat(points[1]).isEqualTo(new BigDecimal("1000"));
+        assertThat((BigDecimal) points[1]).isEqualByComparingTo("1000");
 
         // 원장 기록 확인
         @SuppressWarnings("unchecked")
@@ -244,7 +244,7 @@ class PromotionSchemaIntegrationTest extends PostgresIntegrationSupport {
         assertThat(histories).hasSize(1);
         assertThat(((Number) histories.get(0)[0]).longValue()).isEqualTo(memberId);
         assertThat(histories.get(0)[1]).isEqualTo("EARN");
-        assertThat(histories.get(0)[2]).isEqualTo(new BigDecimal("1000"));
+        assertThat((BigDecimal) histories.get(0)[2]).isEqualByComparingTo("1000");
         assertThat(histories.get(0)[3]).isEqualTo("테스트 적립");
     }
 
