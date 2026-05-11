@@ -37,6 +37,7 @@ public enum ErrorCode {
     INVALID_FILE_TYPE(HttpStatus.BAD_REQUEST),
     INSUFFICIENT_POINTS(HttpStatus.UNPROCESSABLE_ENTITY),
     POINT_HISTORY_NOT_FOUND(HttpStatus.NOT_FOUND),
+    SEARCH_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final HttpStatus httpStatus;

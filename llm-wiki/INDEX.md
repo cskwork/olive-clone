@@ -23,8 +23,8 @@ in doubt, open the PDF.
 | 70-payment-domain           | PG idempotency, webhook callback authority, READY→APPROVED→REFUNDED         | 2026-05-10 (seed)    |
 | 80-delivery-domain          | deliveries 1:N to order, async carrier API, retry queue                     | 2026-05-10 (seed)    |
 | 90-review-domain            | Only purchased order_items can review; aggregate to product summary         | 2026-05-10 (seed)    |
-| 95-search-domain            | DB LIKE → OpenSearch; index sync via outbox events                          | 2026-05-10 (seed)    |
-| 96-eventing                 | OrderCreated / PaymentApproved / etc. + outbox pattern                      | 2026-05-10 (seed)    |
+| 95-search-domain            | DB LIKE → OpenSearch; products 인덱스 + outbox 동기 워커 (OLV-100)           | 2026-05-11 (OLV-100) |
+| 96-eventing                 | OrderCreated / PaymentApproved / etc. + outbox_events V8 (OLV-100)          | 2026-05-11 (OLV-100) |
 | 97-batch-jobs               | Payment-pending expiry / inventory release / coupon expiry / sales rollup   | 2026-05-10 (seed)    |
 | 98-security                 | JWT, role-based access, password hashing (bcrypt 12), PII masking, payment data policy | 2026-05-10 (OLV-011) |
 | 99-failure-handling         | PG outage / carrier outage / OpenSearch outage / Redis outage runbooks      | 2026-05-10 (seed)    |
