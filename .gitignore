@@ -30,6 +30,11 @@ application-local-personal.yml
 # Archon MCP configs (may reference env-var-only tokens)
 /.archon/mcp/
 
+# Serena & Archon runtime
+.serena/
+.archon/
+bin/
+
 # JWT signing keys — dev keypair gitignored (OLV-005).
 # 운영은 Secrets Manager / K8s Secret 마운트로 주입한다 (llm-wiki/98-security.md).
 src/main/resources/keys/*
