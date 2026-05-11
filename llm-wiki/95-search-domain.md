@@ -44,5 +44,9 @@ moves to OpenSearch as soon as catalog scales.
 - 2026-05-10 | seed | OpenSearch (not Elasticsearch) for license clarity.
 - 2026-05-10 | seed | Index sync via outbox table + scheduled drainer to
   guarantee at-least-once delivery without coupling to product writes.
+- 2026-05-10 | OLV-003 | OpenSearch baseline 빈은 `OpenSearchClient` (legacy
+  `RestClient` + `RestClientTransport` + `JacksonJsonpMapper`) 1개로 노출
+  (`llm-wiki/03-infra-baseline.md`). 본 도메인 티켓의 인덱서 워커는 이 빈을
+  outbox 드레이너에서만 호출하고, 상품 쓰기 패스에 직접 두지 않는다.
 
-**Last updated:** 2026-05-10 by seed.
+**Last updated:** 2026-05-10 by OLV-003.

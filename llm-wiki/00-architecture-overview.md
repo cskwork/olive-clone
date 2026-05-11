@@ -53,5 +53,12 @@ independent services later (PRD §21.1).
   permitAll. `endpoint.health.probes.enabled=true`로 켜져
   `/actuator/health/liveness`·`/readiness`도 함께 노출 — OLV-130(observability)
   의 K8s probe 매핑이 이 위로 직행.
+- 2026-05-10 | OLV-002 | Persistence baseline 활성: `DataSourceAutoConfiguration`
+  / `HibernateJpaAutoConfiguration` exclude 두 줄 제거, Flyway autoconfig 켜짐
+  (`spring.flyway.locations=classpath:db/migration` 명시). docker-compose
+  `postgres:16-alpine` (5432, db/user/pass = `commerce`) + Flyway baseline
+  `V1__init_baseline.sql` (placeholder) + Testcontainers `@ServiceConnection`
+  공유 베이스(`PostgresIntegrationSupport`)가 후속 도메인 티켓의 진입점.
+  세부는 `02-persistence-baseline.md`.
 
-**Last updated:** 2026-05-10 by OLV-001.
+**Last updated:** 2026-05-10 by OLV-002.

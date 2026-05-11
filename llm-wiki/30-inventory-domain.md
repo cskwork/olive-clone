@@ -36,5 +36,9 @@ failure or reservation expiry **releases** it (PRD §6.7, §20.5).
 - 2026-05-10 | seed | Reservation TTL = 15 minutes (longer than typical PG
   approval window, short enough to keep popular SKUs flowing).
 - 2026-05-10 | seed | Lock library = Redisson (mature `RLock` semantics).
+- 2026-05-10 | OLV-003 | Redis baseline은 OLV-003에서 `RedisConnectionFactory`
+  + 자동설정 `StringRedisTemplate`만 노출 (`llm-wiki/03-infra-baseline.md`).
+  본 도메인 티켓에서 Redisson `RLock` 빈을 추가로 쌓아 올린다 — Redis
+  자체는 baseline이 보장.
 
-**Last updated:** 2026-05-10 by seed.
+**Last updated:** 2026-05-10 by OLV-003.

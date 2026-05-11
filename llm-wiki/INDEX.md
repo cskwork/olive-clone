@@ -12,7 +12,9 @@ in doubt, open the PDF.
 |-----------------------------|-----------------------------------------------------------------------------|----------------------|
 | 00-architecture-overview    | Modular monolith package layout, storage map, external systems              | 2026-05-10 (OLV-001) |
 | 01-common-conventions       | ApiResponse envelope / ErrorCode→HTTP / X-Request-Id MDC / audit JSON 규약    | 2026-05-10 (OLV-004) |
-| 10-member-domain            | members / addresses / grades, JWT access+refresh, role hierarchy            | 2026-05-10 (OLV-010) |
+| 02-persistence-baseline     | Postgres+Flyway+Testcontainers baseline, BOM 1.21.4 pin, RepositoryIT 베이스 | 2026-05-10 (OLV-002) |
+| 03-infra-baseline           | Redis(자동설정)/S3 LocalStack(localMode 가드)/OpenSearch(legacy transport) baseline | 2026-05-10 (OLV-003) |
+| 10-member-domain            | members / addresses / grades, JWT access+refresh, role hierarchy, signup/login/refresh/logout | 2026-05-10 (OLV-011) |
 | 20-product-domain           | products / options / images / brands / categories, status state machine     | 2026-05-10 (seed)    |
 | 30-inventory-domain         | Per-option inventory, reserve→commit, Redis distributed lock + DB fallback  | 2026-05-10 (seed)    |
 | 40-cart-domain              | carts/cart_items, anon vs member cart merge, re-validate at order time      | 2026-05-10 (seed)    |
@@ -24,5 +26,5 @@ in doubt, open the PDF.
 | 95-search-domain            | DB LIKE → OpenSearch; index sync via outbox events                          | 2026-05-10 (seed)    |
 | 96-eventing                 | OrderCreated / PaymentApproved / etc. + outbox pattern                      | 2026-05-10 (seed)    |
 | 97-batch-jobs               | Payment-pending expiry / inventory release / coupon expiry / sales rollup   | 2026-05-10 (seed)    |
-| 98-security                 | JWT, role-based access, password hashing, PII masking, payment data policy  | 2026-05-10 (OLV-005) |
+| 98-security                 | JWT, role-based access, password hashing (bcrypt 12), PII masking, payment data policy | 2026-05-10 (OLV-011) |
 | 99-failure-handling         | PG outage / carrier outage / OpenSearch outage / Redis outage runbooks      | 2026-05-10 (seed)    |
