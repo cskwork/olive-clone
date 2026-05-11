@@ -24,7 +24,7 @@ import org.springframework.context.annotation.Configuration;
  * 제어 — 도메인 서비스가 분기한다.
  */
 @Configuration
-class RedissonConfig {
+public class RedissonConfig {
 
     private static final Logger log = LoggerFactory.getLogger(RedissonConfig.class);
 
@@ -33,7 +33,7 @@ class RedissonConfig {
 
     private RedissonClient redissonClient;
 
-    RedissonConfig(RedisProperties redisProperties, InventoryLockProperties lockProperties) {
+    public RedissonConfig(RedisProperties redisProperties, InventoryLockProperties lockProperties) {
         this.redisProperties = redisProperties;
         this.lockProperties = lockProperties;
     }
@@ -70,7 +70,7 @@ class RedissonConfig {
     }
 
     @PreDestroy
-    void verifyShutdown() {
+    public void verifyShutdown() {
         if (redissonClient != null && !redissonClient.isShutdown()) {
             log.info("RedissonClient shutting down...");
             // @Bean(destroyMethod)으로 자동 호출되지만, 명시적 로그를 위해 남김
