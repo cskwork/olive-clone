@@ -18,7 +18,7 @@ in doubt, open the PDF.
 | 20-product-domain           | products / options / images / brands / categories, admin CRUD + presigned upload | 2026-05-11 (OLV-022) |
 | 30-inventory-domain         | Per-option inventory, reserve→commit, Redis distributed lock + DB fallback  | 2026-05-11 (OLV-030) |
 | 40-cart-domain              | carts/cart_items, anon vs member cart merge, re-validate at order time      | 2026-05-10 (seed)    |
-| 50-promotion-domain         | coupons/points lifecycle, discount types (FIXED/PERCENT/BOGO/etc.)          | 2026-05-10 (seed)    |
+| 50-promotion-domain         | coupons/points lifecycle, discount types (FIXED/PERCENT/BOGO/etc.)          | 2026-05-11 (OLV-051) |
 | 60-order-domain             | Order state machine, copied-product snapshot, status history table          | 2026-05-10 (seed)    |
 | 70-payment-domain           | PG idempotency, webhook callback authority, READY→APPROVED→REFUNDED         | 2026-05-10 (seed)    |
 | 80-delivery-domain          | deliveries 1:N to order, async carrier API, retry queue                     | 2026-05-10 (seed)    |
