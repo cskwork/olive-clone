@@ -45,7 +45,6 @@ import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequ
 @AutoConfigureMockMvc
 @Testcontainers
 @ActiveProfiles("test")
-@Transactional
 class ProductPublicApiIT extends PostgresIntegrationSupport {
 
     @Container
@@ -78,13 +77,32 @@ class ProductPublicApiIT extends PostgresIntegrationSupport {
 
     @BeforeEach
     void setUp() {
+        // Clean up test data (delete products created by tests, keep Flyway seed id=1)
+        new TransactionTemplate(txManager).executeWithoutResult(s -> {
+            em.createNativeQuery("DELETE FROM product_options WHERE product_id > 1").executeUpdate();
+            em.createNativeQuery("DELETE FROM product_images WHERE product_id > 1").executeUpdate();
+            em.createNativeQuery("DELETE FROM product_category_mapping WHERE product_id > 1").executeUpdate();
+            em.createNativeQuery("DELETE FROM products WHERE id > 1").executeUpdate();
+
+            // Reset Flyway seed product (id=1) to original state
+            // Tests may modify this product, so restore it before each test
+            em.createNativeQuery("""
+                UPDATE products SET
+                    name = '키즈 매일 선크림 SPF50+ PA++++',
+                    sale_price = 20000,
+                    base_price = 25000,
+                    status = 'ON_SALE'
+                WHERE id = 1
+                """).executeUpdate();
+        });
+
         // Reset sequences to sync with Flyway data
         new TransactionTemplate(txManager).executeWithoutResult(s -> {
             em.createNativeQuery("SELECT setval('products_id_seq', 1, true)").getSingleResult();
             em.createNativeQuery("SELECT setval('product_options_id_seq', 2, true)").getSingleResult();
         });
 
-        // Flush Redis
+        // Flush Redis (including list version)
         redisTemplate.getConnectionFactory().getConnection().flushAll();
 
         adminToken = createAdminJwt();
@@ -146,8 +164,9 @@ class ProductPublicApiIT extends PostgresIntegrationSupport {
         String version = redisTemplate.opsForValue().get("cache:product:list:version");
         assertThat(version).isNotNull();
 
-        // Cache key exists
-        String cacheKey = "cache:product:list:v" + version + ":p0:sz10";
+        // Cache key exists (format: cache:product:list:v{version}:s{sort}:p{page}:sz{size})
+        // With default sort=LATEST, categoryId=null, brandId=null
+        String cacheKey = "cache:product:list:v" + version + ":sLATEST:p0:sz10";
         String cached = redisTemplate.opsForValue().get(cacheKey);
         assertThat(cached).isNotNull();
     }

@@ -203,7 +203,7 @@ public class ProductPublicService {
                    (SELECT url FROM product_images WHERE product_id = p.id AND sort_order = 1 LIMIT 1)
             FROM products p
             LEFT JOIN brands b ON p.brand_id = b.id
-            WHERE p.status = 'ON_SALE'
+            WHERE p.status IN ('ON_SALE', 'SOLD_OUT')  -- AC3: HIDDEN/STOPPED/DRAFT excluded
             AND (CAST(:categoryId AS BIGINT) IS NULL OR p.id IN (
                 SELECT pcm.product_id FROM product_category_mapping pcm WHERE pcm.category_id = :categoryId
             ))
@@ -246,7 +246,7 @@ public class ProductPublicService {
         Long total = ((Number) em.createNativeQuery("""
             SELECT COUNT(*)
             FROM products p
-            WHERE p.status = 'ON_SALE'
+            WHERE p.status IN ('ON_SALE', 'SOLD_OUT')  -- AC3: HIDDEN/STOPPED/DRAFT excluded
             AND (CAST(:categoryId AS BIGINT) IS NULL OR p.id IN (
                 SELECT pcm.product_id FROM product_category_mapping pcm WHERE pcm.category_id = :categoryId
             ))
