@@ -1,0 +1,51 @@
+OLV-011 QA — 전체 테스트 실행 결과 (Java 21 toolchain, Testcontainers PG + Redis + LocalStack + OpenSearch)
+
+명령:
+  $ JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home \
+    ./gradlew test --console=plain
+exit code: 0
+elapsed: 34s
+
+테스트 결과 (build/test-results/test/*.xml 집계):
+
+| 테스트 클래스 | tests | failures | errors | skipped |
+|---|---:|---:|---:|---:|
+| com.olive.commerce.auth.AuthApiIT                              | 8 | 0 | 0 | 0 |
+| com.olive.commerce.BootstrapTest                               | 2 | 0 | 0 | 0 |
+| com.olive.commerce.common.audit.LogbackAuditLoggerIT           | 1 | 0 | 0 | 0 |
+| com.olive.commerce.common.config.AwsS3IntegrationTest          | 1 | 0 | 0 | 0 |
+| com.olive.commerce.common.config.OpenSearchIntegrationTest     | 1 | 0 | 0 | 0 |
+| com.olive.commerce.common.config.RedisIntegrationTest          | 1 | 0 | 0 | 0 |
+| com.olive.commerce.common.error.AcceptanceCriteriaCapture      | 4 | 0 | 0 | 0 |
+| com.olive.commerce.common.error.GlobalExceptionHandlerTest     | 5 | 0 | 0 | 0 |
+| com.olive.commerce.common.persistence.RepositoryIntegrationTest| 2 | 0 | 0 | 0 |
+| com.olive.commerce.common.security.JwtTokenProviderTest        | 6 | 0 | 0 | 0 |
+| com.olive.commerce.common.security.SecurityFilterChainEvidenceCapture | 6 | 0 | 0 | 0 |
+| com.olive.commerce.common.security.SecurityFilterChainIT       | 9 | 0 | 0 | 0 |
+| com.olive.commerce.common.web.RequestIdFilterTest              | 4 | 0 | 0 | 0 |
+| com.olive.commerce.member.MemberSchemaIntegrationTest          | 5 | 0 | 0 | 0 |
+
+합계: 55 tests, 0 failures, 0 errors, 0 skipped
+
+OLV-011 AC 매핑:
+
+AC.1 (signup → login → /api/me echoes memberId):
+  AuthApiIT#signupThenLoginThenMe_returnsMemberId — PASS
+
+AC.2 (login failure 시 history row 작성, reason BAD_CREDENTIALS / ACCOUNT_LOCKED):
+  AuthApiIT#loginWrongPassword_returns401_andWritesHistory — PASS
+  AuthApiIT#loginFiveTimesWrong_locksAccount_andSubsequentLoginReturnsLocked — PASS
+
+AC.3 (refresh rotation: old refresh 두 번째 사용 시 401):
+  AuthApiIT#refreshRotation_replayedRefresh_returns401 — PASS
+
+AC.4 (bcrypt cost ≥ 12, 응답에 평문 비밀번호 echo X):
+  AuthApiIT#passwordIsBcrypt12_andNeverEchoed — PASS
+
+AC.5 (Testcontainers 통합 테스트 4 엔드포인트 커버):
+  AuthApiIT 8 케이스 — signup duplicate / signup validation / logout 모두 추가 커버
+
+추가 검증 (회귀 무효화 확인):
+  SecurityFilterChainIT 9 케이스 — placeholder login → 신규 동작으로 갱신
+  SecurityFilterChainEvidenceCapture 6 케이스 — OLV-005 evidence 유지
+  MemberSchemaIntegrationTest 5 케이스 — V2 스키마 contract 변동 없음

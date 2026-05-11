@@ -2,10 +2,16 @@ package com.olive.commerce.common.audit;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.olive.commerce.auth.LoginAttemptGuard;
+import com.olive.commerce.member.MemberGradeRepository;
+import com.olive.commerce.member.MemberLoginHistoryRepository;
+import com.olive.commerce.member.MemberRefreshTokenRepository;
+import com.olive.commerce.member.MemberRepository;
 import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.TestPropertySource;
 
 import java.io.IOException;
@@ -26,12 +32,21 @@ import static org.assertj.core.api.Assertions.assertThat;
         "org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration," +
         "org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration")
 @TestPropertySource(properties = {
-    "olive.audit.dir=build/tmp/audit-it"
+    "olive.audit.dir=build/tmp/audit-it",
+    "olive.security.jwt.access-ttl=PT30M",
+    "olive.security.jwt.refresh-ttl=P14D"
 })
 class LogbackAuditLoggerIT {
 
     @Autowired
     AuditLogger auditLogger;
+
+    // OLV-011: 신규 도메인 빈을 mock 으로 끊는다 — audit logger 만 검증.
+    @MockBean MemberRepository memberRepository;
+    @MockBean MemberRefreshTokenRepository memberRefreshTokenRepository;
+    @MockBean MemberLoginHistoryRepository memberLoginHistoryRepository;
+    @MockBean MemberGradeRepository memberGradeRepository;
+    @MockBean LoginAttemptGuard loginAttemptGuard;
 
     @Test
     void writes_singleLineJson_to_dailyFile_withTraceIdFromMdc() throws IOException {

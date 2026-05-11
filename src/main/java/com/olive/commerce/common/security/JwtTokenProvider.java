@@ -19,4 +19,10 @@ public interface JwtTokenProvider {
      * Access 토큰 검증 + claim 추출. 만료/서명/typ 불일치 시 JwtValidationException.
      */
     JwtClaims parseAccess(String token);
+
+    /**
+     * Refresh 토큰 검증 + claim 추출. 만료/서명/typ 불일치 시 JwtValidationException.
+     * memberId 만 사용 가치가 있으므로 RefreshClaims 의 role 은 USER 로 채워둔다.
+     */
+    JwtClaims parseRefresh(String token);
 }

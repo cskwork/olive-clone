@@ -28,6 +28,10 @@ primary key for orders, reviews, coupons, points — get this right.
 **Files of interest:**
 
 - PRD §6.1, §7.1, §14.
+- `src/main/java/com/olive/commerce/auth/{AuthController,AuthService,AuthDtos,LoginAttemptGuard,RefreshTokens}.java` (OLV-011)
+- `src/main/java/com/olive/commerce/member/{Member,MemberRefreshToken,MemberLoginHistory,MemberGrade}.java` (OLV-011)
+- `src/main/java/com/olive/commerce/member/{MemberRepository,MemberRefreshTokenRepository,MemberLoginHistoryRepository,MemberGradeRepository,MemberProfileController}.java` (OLV-011)
+- `src/test/java/com/olive/commerce/auth/AuthApiIT.java` — 8 케이스 end-to-end (OLV-011)
 
 **Decision log:**
 
@@ -65,4 +69,46 @@ primary key for orders, reviews, coupons, points — get this right.
   - `updated_at` 갱신은 trigger 로 native SQL 경로 (배치/admin) 까지 일관
     유지 — JPA `@PreUpdate` 만 의존 시 native query 가 우회.
 
-**Last updated:** 2026-05-10 by OLV-010.
+- 2026-05-10 | OLV-011 | `/api/auth/{signup,login,refresh,logout}` + `/api/me`
+  완성. 핵심 invariants:
+  - **login() 은 의도적으로 `@Transactional` 미부착** — 실패 시 BusinessException
+    이 동일 트랜잭션의 `member_login_histories` INSERT 까지 rollback 시켜
+    감사 트레일이 사라진다 (PRD §16.2 위반). Spring Data 의 repo 단위
+    `@Transactional` 으로 각 INSERT 가 독립 커밋된다. signup() / refresh() /
+    logout() 은 atomic 보장이 필요하므로 `@Transactional` 유지.
+  - **refresh 회전은 `@Lock(PESSIMISTIC_WRITE)` + token_hash UNIQUE 로
+    DB 차원 직렬화** — `MemberRefreshTokenRepository#lockByTokenHash`
+    가 `SELECT ... FOR UPDATE`. 같은 refresh 가 동시에 두 호출에 들어와도
+    한 트랜잭션이 revoked_at 을 commit 한 뒤 다른 트랜잭션이 lockByTokenHash
+    를 깨워 `revoked_at IS NOT NULL` 을 보고 `INVALID_REFRESH_TOKEN` 으로
+    거절. application-side 락 불필요.
+  - **잠금 카운터는 Redis** (`auth:fail:{email}` TTL 10분, `auth:lock:{email}`
+    TTL 15분). 5회 임계 도달 시 `setIfAbsent` 로 락 SET 후 fail 키 DEL —
+    이후 락 활성 동안에는 비밀번호 검증을 건너뛰어 카운트도 증가 X
+    (DDoS 방지). `members.status` 컬럼은 일시 잠금에 사용하지 않는다.
+  - **bcrypt cost 12 dummy hash 캐싱** — `passwordEncoder.encode(...)` 결과를
+    AuthService 생성자에서 한 번 계산해 인스턴스 필드로 보관. 알려지지 않은
+    이메일에도 `matches(req.password, dummyHash)` 를 호출해 timing 차이를
+    완화. dummy 가 진짜 bcrypt 형식이 아니면 매 호출마다 Spring Security 가
+    `Encoded password does not look like BCrypt` warn 을 남겨 노이즈.
+  - **DataIntegrityViolationException race fallback** — `existsByEmail` 검사
+    와 `saveAndFlush` 사이의 race 에서 두 번째 호출이 `members.email` UNIQUE
+    위배로 떨어진다. 잡아서 `EMAIL_ALREADY_USED` 로 변환.
+  - **refresh 토큰 평문은 응답 외 어디에도 노출되지 않음** — DB 에는 SHA-256
+    hex(64자)만 저장 (`MemberRefreshToken.issue` + `RefreshTokens.sha256Hex`).
+  - **`/api/me` 매처 자동 통과** — SecurityConfig 의 `/api/**`.hasRole("USER")
+    에 자연스럽게 포함, 별도 매처 추가 불필요.
+- 2026-05-10 | OLV-011 | placeholder controller 의 component-scan 측면 부수효과:
+  `AuthService`/`MemberProfileController` 가 component scan 으로 잡히면서
+  기존 좁은-context IT (`SecurityFilterChainIT` 등 — DB autoconfig 제외) 의
+  컨텍스트 부팅이 JPA repo / Redis 의존으로 깨졌다. 해결: `@MockBean` 로
+  domain-bean 의존성을 끊고 (`SecurityFilterChainIT` 5건, `LogbackAuditLoggerIT` 5건),
+  `BootstrapTest` 에는 sibling Redis 컨테이너 추가. 향후 도메인 티켓이 추가
+  컴포넌트를 등록할 때마다 같은 패턴 반복 — base-class 추출이 5번째 도메인쯤
+  할 만한 가치.
+- 2026-05-10 | OLV-011 | `JwtTokenProvider#parseRefresh` 추가. 기존 `parseAccess` 와
+  공유 헬퍼로 리팩터: typ 비교를 매개변수화. refresh 토큰의 role claim 은 없으므로
+  USER 로 하드코드 — refresh 는 단지 "이 회원의 새 access 발급권" 이지 권한
+  자체를 운반하지 않는다 (access 발급 시 DB / 사용자 상태로부터 다시 결정).
+
+**Last updated:** 2026-05-10 by OLV-011.

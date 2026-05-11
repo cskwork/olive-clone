@@ -76,9 +76,15 @@ policy, request audit (PRD §14, §16.2).
   `jti` 평문을 호출자(OLV-011 회원 로그인 흐름) 가 hash(`SHA-256` 등) 해서
   `member_refresh_tokens` 에 저장해야 회전·블랙리스트 검증이 가능. Provider 자체는
   persistence 책임 없음.
+- 2026-05-10 | OLV-011 | `BCryptPasswordEncoder(12)` 빈은 `SecurityConfig` 의
+  `passwordEncoder()` 한 곳에서 노출. cost 12 를 코드로 못 박는다 — yml 설정
+  값 의존 시 하향 조정 사고 가능. `AuthService` 생성자에서 dummy hash 를 한 번
+  encode 해 두면 user-enumeration timing 차이를 완화하면서도 매 요청마다
+  Spring Security 의 `Encoded password does not look like BCrypt` warn 노이즈를
+  피할 수 있다 (반드시 진짜 bcrypt 결과여야 함).
 - 2026-05-10 | OLV-005 | dev 키는 `src/main/resources/keys/{app.key,app.pub}` —
   `.gitignore` 처리. README 에 `openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048`
   명령. 운영은 `application.yml` 의 `olive.security.jwt.private-key-location` 을
   `file:/run/secrets/...` 로 오버라이드해 K8s Secret 마운트.
 
-**Last updated:** 2026-05-10 by OLV-005.
+**Last updated:** 2026-05-10 by OLV-011.

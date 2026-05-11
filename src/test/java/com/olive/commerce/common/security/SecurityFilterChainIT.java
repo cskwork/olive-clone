@@ -1,5 +1,10 @@
 package com.olive.commerce.common.security;
 
+import com.olive.commerce.auth.LoginAttemptGuard;
+import com.olive.commerce.member.MemberGradeRepository;
+import com.olive.commerce.member.MemberLoginHistoryRepository;
+import com.olive.commerce.member.MemberRefreshTokenRepository;
+import com.olive.commerce.member.MemberRepository;
 import com.olive.commerce.member.MemberRole;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,6 +15,7 @@ import org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerA
 import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -36,7 +42,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 @TestPropertySource(properties = {
     "spring.flyway.enabled=false",
-    "spring.jpa.repositories.bootstrap-mode=default"
+    "spring.jpa.repositories.bootstrap-mode=default",
+    // Redis health indicator 는 본 테스트와 무관하므로 끈다 — 컨테이너가 없어 503 으로 떨어진다.
+    "management.health.redis.enabled=false",
+    "olive.security.jwt.access-ttl=PT30M",
+    "olive.security.jwt.refresh-ttl=P14D"
 })
 class SecurityFilterChainIT {
 
@@ -45,6 +55,15 @@ class SecurityFilterChainIT {
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
+
+    // OLV-011: AuthService/MemberProfileController 가 component scan 으로 잡히면서
+    // JPA repo 와 LoginAttemptGuard 의존이 생겼다. 본 IT 는 SecurityFilterChain 만
+    // 검증하므로 mock 으로 끊는다 — 진짜 동작 검증은 AuthApiIT (Testcontainers).
+    @MockBean MemberRepository memberRepository;
+    @MockBean MemberRefreshTokenRepository memberRefreshTokenRepository;
+    @MockBean MemberLoginHistoryRepository memberLoginHistoryRepository;
+    @MockBean MemberGradeRepository memberGradeRepository;
+    @MockBean LoginAttemptGuard loginAttemptGuard;
 
     @Test
     void actuatorHealth_isPublic_returns200() throws Exception {
@@ -119,10 +138,14 @@ class SecurityFilterChainIT {
     }
 
     @Test
-    void apiAuth_login_isPublic_returns200() throws Exception {
-        mockMvc.perform(post("/api/auth/login"))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.status").value("placeholder"));
+    void apiAuth_login_isPublic_passesSecurityFilter() throws Exception {
+        // OLV-011: 본문 없는 POST 는 컨트롤러 검증에 의해 400 으로 떨어진다 (Bean Validation).
+        // 핵심 검증은 SecurityFilterChain 이 401 을 던지지 않는다는 것 — permitAll 동작.
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"));
     }
 
     @Test

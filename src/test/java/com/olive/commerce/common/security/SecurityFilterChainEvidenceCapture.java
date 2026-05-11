@@ -1,6 +1,11 @@
 package com.olive.commerce.common.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.olive.commerce.auth.LoginAttemptGuard;
+import com.olive.commerce.member.MemberGradeRepository;
+import com.olive.commerce.member.MemberLoginHistoryRepository;
+import com.olive.commerce.member.MemberRefreshTokenRepository;
+import com.olive.commerce.member.MemberRepository;
 import com.olive.commerce.member.MemberRole;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -16,6 +21,7 @@ import org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerA
 import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -45,7 +51,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 })
 @TestPropertySource(properties = {
     "spring.flyway.enabled=false",
-    "spring.jpa.repositories.bootstrap-mode=default"
+    "spring.jpa.repositories.bootstrap-mode=default",
+    "management.health.redis.enabled=false",
+    "olive.security.jwt.access-ttl=PT30M",
+    "olive.security.jwt.refresh-ttl=P14D"
 })
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class SecurityFilterChainEvidenceCapture {
@@ -57,6 +66,14 @@ class SecurityFilterChainEvidenceCapture {
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
+
+    // OLV-011: AuthService/MemberProfileController 가 도메인 빈을 끌어왔다 — 본 evidence
+    // 캡처는 보안 필터만 검증하므로 의존을 mock 으로 끊는다.
+    @MockBean MemberRepository memberRepository;
+    @MockBean MemberRefreshTokenRepository memberRefreshTokenRepository;
+    @MockBean MemberLoginHistoryRepository memberLoginHistoryRepository;
+    @MockBean MemberGradeRepository memberGradeRepository;
+    @MockBean LoginAttemptGuard loginAttemptGuard;
 
     @Autowired
     private ObjectMapper objectMapper;

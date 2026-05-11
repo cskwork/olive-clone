@@ -74,6 +74,15 @@ public class NimbusJwtTokenProvider implements JwtTokenProvider {
 
     @Override
     public JwtClaims parseAccess(String token) {
+        return parse(token, TYPE_ACCESS);
+    }
+
+    @Override
+    public JwtClaims parseRefresh(String token) {
+        return parse(token, TYPE_REFRESH);
+    }
+
+    private JwtClaims parse(String token, String expectedTyp) {
         SignedJWT signed;
         try {
             signed = SignedJWT.parse(token);
@@ -105,8 +114,8 @@ public class NimbusJwtTokenProvider implements JwtTokenProvider {
         } catch (ParseException ex) {
             throw new JwtValidationException("typ claim invalid", ex);
         }
-        if (!TYPE_ACCESS.equals(typ)) {
-            throw new JwtValidationException("typ is not access (got=" + typ + ")");
+        if (!expectedTyp.equals(typ)) {
+            throw new JwtValidationException("typ is not " + expectedTyp + " (got=" + typ + ")");
         }
 
         Date exp = claims.getExpirationTime();
@@ -125,11 +134,15 @@ public class NimbusJwtTokenProvider implements JwtTokenProvider {
         }
 
         MemberRole role;
-        try {
-            String roleClaim = claims.getStringClaim("role");
-            role = MemberRole.valueOf(roleClaim);
-        } catch (ParseException | IllegalArgumentException | NullPointerException ex) {
-            throw new JwtValidationException("role claim invalid", ex);
+        if (TYPE_ACCESS.equals(expectedTyp)) {
+            try {
+                String roleClaim = claims.getStringClaim("role");
+                role = MemberRole.valueOf(roleClaim);
+            } catch (ParseException | IllegalArgumentException | NullPointerException ex) {
+                throw new JwtValidationException("role claim invalid", ex);
+            }
+        } else {
+            role = MemberRole.USER;
         }
 
         return new JwtClaims(memberId, role, exp.toInstant());
