@@ -42,3 +42,18 @@ failure or reservation expiry **releases** it (PRD §6.7, §20.5).
   자체는 baseline이 보장.
 
 **Last updated:** 2026-05-10 by OLV-003.
+
+**Decision log:**
+
+- 2026-05-10 | seed | Reservation TTL = 15 minutes (longer than typical PG
+  approval window, short enough to keep popular SKUs flowing).
+- 2026-05-10 | seed | Lock library = Redisson (mature `RLock` semantics).
+- 2026-05-10 | OLV-003 | Redis baseline은 OLV-003에서 `RedisConnectionFactory`
+  + 자동설정 `StringRedisTemplate`만 노출 (`llm-wiki/03-infra-baseline.md`).
+  본 도메인 티켓에서 Redisson `RLock` 빈을 추가로 쌓아 올린다 — Redis
+  자체는 baseline이 보장.
+- 2026-05-11 | OLV-030 | V4__inventory.sql 적용 완료. `available_quantity GENERATED
+  ALWAYS AS (total_quantity - reserved_quantity) STORED`로 서비스 버그 방지.
+  `uniq_inventory_reservations_order_option` UNIQUE 인덱스로 (order_id,
+  product_option_id) 중복 예약 방지. CHECK 제약 3개로 non-negative + total >=
+  reserved 강제. InventorySchemaIntegrationTest(10 테스트)로 AC 3건 검증 완료.

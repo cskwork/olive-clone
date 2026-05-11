@@ -16,7 +16,7 @@ in doubt, open the PDF.
 | 03-infra-baseline           | Redis(자동설정)/S3 LocalStack(localMode 가드)/OpenSearch(legacy transport) baseline | 2026-05-11 (OLV-021) |
 | 10-member-domain            | members / addresses / grades, JWT access+refresh, role hierarchy, signup/login/refresh/logout | 2026-05-10 (OLV-011) |
 | 20-product-domain           | products / options / images / brands / categories, admin CRUD + presigned upload | 2026-05-11 (OLV-022) |
-| 30-inventory-domain         | Per-option inventory, reserve→commit, Redis distributed lock + DB fallback  | 2026-05-10 (seed)    |
+| 30-inventory-domain         | Per-option inventory, reserve→commit, Redis distributed lock + DB fallback  | 2026-05-11 (OLV-030) |
 | 40-cart-domain              | carts/cart_items, anon vs member cart merge, re-validate at order time      | 2026-05-10 (seed)    |
 | 50-promotion-domain         | coupons/points lifecycle, discount types (FIXED/PERCENT/BOGO/etc.)          | 2026-05-10 (seed)    |
 | 60-order-domain             | Order state machine, copied-product snapshot, status history table          | 2026-05-10 (seed)    |
