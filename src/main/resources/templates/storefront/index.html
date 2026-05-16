@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Olive Commerce Console</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%233d6b47'/%3E%3Cpath d='M16 7c5 4 7 8 7 12a7 7 0 1 1-14 0c0-4 2-8 7-12Z' fill='%23f7fff5'/%3E%3C/svg%3E">
+  <link rel="stylesheet" th:href="@{/css/storefront.css}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-block">
+      <p class="eyebrow">Commerce Backend Smoke UI</p>
+      <h1>Olive Commerce Console</h1>
+    </div>
+    <div id="apiStatus" class="status-pill status-loading" role="status" aria-live="polite" aria-atomic="true">
+      <span class="status-dot" aria-hidden="true"></span>
+      <span class="status-label">API</span>
+      <strong class="status-value">CHECKING</strong>
+      <span class="status-latency" id="apiLatency"></span>
+    </div>
+  </header>
+
+  <main class="shell"
+        th:attr="data-page-size=${pageSize},data-initial-page=${selectedPage},data-initial-sort=${selectedSort}">
+    <section class="toolbar" aria-label="Catalog controls">
+      <form id="catalogForm" class="filter-row" method="get" action="/products">
+        <label>
+          Sort
+          <select id="sortSelect" name="sort">
+            <option value="LATEST" th:selected="${selectedSort == 'LATEST'}">Latest</option>
+            <option value="POPULAR" th:selected="${selectedSort == 'POPULAR'}">Popular</option>
+            <option value="PRICE_ASC" th:selected="${selectedSort == 'PRICE_ASC'}">Price low</option>
+            <option value="PRICE_DESC" th:selected="${selectedSort == 'PRICE_DESC'}">Price high</option>
+            <option value="RATING" th:selected="${selectedSort == 'RATING'}">Rating</option>
+          </select>
+        </label>
+        <input type="hidden" name="page" id="pageInput" th:value="${selectedPage}">
+        <button type="submit" id="refreshBtn" class="btn-ghost" aria-label="Refresh products">
+          <span aria-hidden="true">↻</span> Refresh
+        </button>
+      </form>
+      <div class="metrics" role="group" aria-label="Catalog summary">
+        <div class="metric">
+          <span>Total</span>
+          <strong id="totalProducts">0</strong>
+        </div>
+        <div class="metric">
+          <span>Showing</span>
+          <strong id="rangeLabel">—</strong>
+        </div>
+        <div class="metric">
+          <span>Last refreshed</span>
+          <strong id="lastRefreshed">—</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="endpoint" aria-label="Last request endpoint">
+      <span class="endpoint-verb">GET</span>
+      <code id="endpointPreview">/api/products</code>
+      <button type="button" id="copyEndpoint" class="btn-link" aria-label="Copy endpoint URL">Copy</button>
+    </section>
+
+    <section id="catalog" class="catalog" aria-label="Products" aria-live="polite" aria-busy="true">
+      <div id="emptyState" class="empty-state">
+        <strong>Loading products</strong>
+        <span>Connecting to /api/products.</span>
+        <button type="button" id="retryBtn" class="btn-ghost" hidden>Retry</button>
+      </div>
+    </section>
+
+    <nav class="pager" aria-label="Pagination" hidden>
+      <button type="button" id="prevPage" class="btn-ghost" data-action="prev" disabled>&larr; Prev</button>
+      <span class="pager-meta">
+        Page <strong id="currentPage">1</strong>
+        of <strong id="totalPages">1</strong>
+      </span>
+      <button type="button" id="nextPage" class="btn-ghost" data-action="next" disabled>Next &rarr;</button>
+    </nav>
+
+    <noscript>
+      <p class="noscript-warning">
+        JavaScript is required to load <code>/api/products</code>. Enable scripts or query the API directly.
+      </p>
+    </noscript>
+  </main>
+
+  <script th:src="@{/js/storefront.js}"></script>
+</body>
+</html>
