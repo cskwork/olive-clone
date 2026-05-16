@@ -1,0 +1,37 @@
+# Prometheus configuration for Commerce Backend (OLV-130)
+# 기본 설정: Spring Boot Actuator Prometheus endpoint에서 메트릭 스크래핑
+
+global:
+  scrape_interval: 15s  # 기본 스크래핑 간격
+  evaluation_interval: 15s  # 규칙 평가 간격
+  external_labels:
+    cluster: 'commerce-backend'
+    environment: 'local'
+
+# Alertmanager 설정 (선택사항 - 향후 추가 가능)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+# 규칙 파일 로드
+rule_files:
+  - 'alerts.yml'
+
+# 스크래핑 타겟 설정
+scrape_configs:
+  # Prometheus 자체 메트릭
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Commerce Backend 메트릭 (로컬 개발 환경)
+  # Docker Compose 외부에서 실행되는 애플리케이션은 host.docker.internal 사용
+  - job_name: 'commerce-backend'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['host.docker.internal:8080']
+        labels:
+          application: 'commerce-backend'
+          service: 'api'

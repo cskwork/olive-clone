@@ -25,7 +25,8 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK,
+@SpringBootTest(classes = LogbackAuditLogger.class,
+    webEnvironment = SpringBootTest.WebEnvironment.MOCK,
     properties = "spring.autoconfigure.exclude=" +
         "org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration," +
         "org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration," +

@@ -13,18 +13,19 @@ in doubt, open the PDF.
 | 00-architecture-overview    | Modular monolith package layout, storage map, external systems              | 2026-05-10 (OLV-001) |
 | 01-common-conventions       | ApiResponse envelope / ErrorCode→HTTP / X-Request-Id MDC / audit JSON 규약    | 2026-05-11 (OLV-021) |
 | 02-persistence-baseline     | Postgres+Flyway+Testcontainers baseline, BOM 1.21.4 pin, RepositoryIT 베이스 | 2026-05-10 (OLV-002) |
-| 03-infra-baseline           | Redis(자동설정)/S3 LocalStack(localMode 가드)/OpenSearch(legacy transport) baseline | 2026-05-11 (OLV-021) |
+| 03-infra-baseline           | Redis(자동설정)/S3 LocalStack(localMode 가드)/OpenSearch(legacy transport)/Prometheus+Grafana/k6 load testing | 2026-05-13 (OLV-141) |
 | 10-member-domain            | members / addresses / grades, JWT access+refresh, role hierarchy, signup/login/refresh/logout, profile/address CRUD | 2026-05-11 (OLV-012) |
 | 20-product-domain           | products / options / images / brands / categories, admin CRUD + presigned upload | 2026-05-11 (OLV-022) |
 | 30-inventory-domain         | Per-option inventory, reserve→commit, Redis distributed lock + DB fallback  | 2026-05-11 (OLV-030) |
 | 40-cart-domain              | carts/cart_items, anon vs member cart merge, re-validate at order time      | 2026-05-10 (seed)    |
 | 50-promotion-domain         | coupons/points lifecycle, discount types (FIXED/PERCENT/BOGO/etc.)          | 2026-05-11 (OLV-051) |
 | 60-order-domain             | Order state machine, copied-product snapshot, status history table, 8-step creation pipeline, cancel flow (user + admin force), list/detail APIs (user + admin with PII masking) | 2026-05-12 (OLV-063) |
-| 70-payment-domain           | PG idempotency, webhook callback authority, READY→APPROVED→REFUNDED         | 2026-05-12 (OLV-071) |
+| 70-payment-domain           | PG idempotency, webhook callback authority, READY→APPROVED→REFUNDED         | 2026-05-12 (OLV-073) |
 | 80-delivery-domain          | deliveries 1:N to order, async carrier API, retry queue                     | 2026-05-10 (seed)    |
-| 90-review-domain            | Only purchased order_items can review; aggregate to product summary         | 2026-05-10 (seed)    |
-| 95-search-domain            | DB LIKE → OpenSearch; products 인덱스 + outbox 동기 워커 (OLV-100)           | 2026-05-11 (OLV-100) |
-| 96-eventing                 | OrderCreated / PaymentApproved / etc. + outbox_events V8 (OLV-100)          | 2026-05-11 (OLV-100) |
+| 90-review-domain            | Only purchased order_items can review; aggregate to product summary         | 2026-05-13 (OLV-140)  |
+| 91-testing-patterns         | E2E/IT/k6 패턴: 트랜잭션 격리, @Async 리스너, Testcontainers, SharedArray, handleSummary | 2026-05-13 (OLV-141)  |
+| 95-search-domain            | DB LIKE → OpenSearch; products 인덱스 + outbox 동기 + read-path API 3종 (OLV-101) | 2026-05-13 (OLV-101) |
+| 96-eventing                 | OrderCreated / PaymentApproved / etc. + outbox_events V8 (OLV-100)          | 2026-05-13 (OLV-140) |
 | 97-batch-jobs               | Payment-pending expiry / inventory release / coupon expiry / sales rollup   | 2026-05-10 (seed)    |
 | 98-security                 | JWT, role-based access, password hashing (bcrypt 12), PII masking, payment data policy | 2026-05-10 (OLV-011) |
 | 99-failure-handling         | PG outage / carrier outage / OpenSearch outage / Redis outage runbooks      | 2026-05-10 (seed)    |

@@ -1,0 +1,150 @@
+# Prometheus Alert Rules for Commerce Backend (OLV-130 / PRD §16.3)
+# 규칙 평가 간격: global.evaluation_interval (15초)
+
+groups:
+  - name: commerce_backend_alerts
+    interval: 30s
+    rules:
+      # 결제 실패율 알림 (PRD §16.3)
+      # 5분 동안 결제 실패율이 10% 이상 증가 시 경고
+      - alert: HighPaymentFailureRate
+        expr: |
+          (
+            sum(rate(commerce_payments_total{status="FAILED"}[5m])) /
+            (sum(rate(commerce_payments_total[5m])) + 0.01)
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          team: payment
+        annotations:
+          summary: "결제 실패율 높음 (5분: {{ $value | humanizePercentage }})"
+          description: "5분 동안 결제 실패율이 10% 이상입니다. PG 상태를 확인하세요."
+
+      # 재고 예약 실패율 알림
+      # 5분 동안 재고 예약 실패가 50회 이상 발생 시 경고
+      - alert: HighInventoryReservationFailureRate
+        expr: |
+          sum(rate(commerce_inventory_reservation_failures_total[5m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+          team: inventory
+        annotations:
+          summary: "재고 예약 실패율 높음 ({{ $value | humanize }} failures/sec)"
+          description: "5분 동안 재고 예약 실패가 빈번합니다. 재고 동시성 제어를 확인하세요."
+
+      # 검색 빈 결과 응답 비율 알림
+      # 5분 동안 빈 검색 결과 비율이 80% 이상 시 경고
+      - alert: HighSearchEmptyResultRate
+        expr: |
+          (
+            sum(rate(commerce_search_empty_result_total[5m])) /
+            (sum(rate(commerce_search_request_seconds_count[5m])) + 0.01)
+          ) > 0.8
+        for: 5m
+        labels:
+          severity: info
+          team: search
+        annotations:
+          summary: "검색 빈 결과 응답 높음 ({{ $value | humanizePercentage }})"
+          description: "사용자가 검색한 결과를 찾지 못하고 있습니다. 색인을 확인하세요."
+
+      # 주문 취소율 알림
+      # 10분 동안 주문 취소율이 30% 이상 시 경고
+      - alert: HighOrderCancellationRate
+        expr: |
+          (
+            sum(rate(commerce_orders_canceled_total[10m])) /
+            (sum(rate(commerce_orders_created_total[10m])) + 0.01)
+          ) > 0.3
+        for: 10m
+        labels:
+          severity: warning
+          team: order
+        annotations:
+          summary: "주문 취소율 높음 (10분: {{ $value | humanizePercentage }})"
+          description: "주문 취소가 빈번합니다. 결제 프로세스를 확인하세요."
+
+      # Outbox 밀림 알림
+      # 처리 대기 중인 outbox 이벤트가 1000개 이상 시 경고
+      - alert: OutboxBacklog
+        expr: outbox_pending_count > 1000
+        for: 10m
+        labels:
+          severity: warning
+          team: search
+        annotations:
+          summary: "Outbox 이벤트 밀림 ({{ $value }} events)"
+          description: "처리 대기 중인 outbox 이벤트가 1000개를 초과했습니다. 워커 상태를 확인하세요."
+
+      # API 응답 시간 알림
+      # P95 응답 시간이 2초 이상 지속 시 경고
+      - alert: HighApiResponseTime
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_server_requests_seconds_bucket[5m])) by (le)
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+          team: api
+        annotations:
+          summary: "API 응답 시간 높음 (P95: {{ $value }}s)"
+          description: "P95 응답 시간이 2초를 초과합니다. 성능 병목을 확인하세요."
+
+      # API 오류율 알림
+      # 5분 동안 5xx 오류율이 5% 이상 시 경고
+      - alert: HighApiErrorRate
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) /
+            (sum(rate(http_server_requests_seconds_count[5m])) + 0.01)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          team: api
+        annotations:
+          summary: "API 오류율 높음 (5분: {{ $value | humanizePercentage }})"
+          description: "5xx 오류율이 5%를 초과합니다. 즉시 조치가 필요합니다."
+
+      # DB 커넥션 풀 사용률 알림
+      # 활성 커넥션이 최대 풀 크기의 80% 이상 사용 시 경고
+      - alert: HighDbPoolUsage
+        expr: |
+          (db_pool_active / 20) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          team: database
+        annotations:
+          summary: "DB 커넥션 풀 사용률 높음 ({{ $value | humanizePercentage }})"
+          description: "DB 커넥션 풀 사용률이 80%를 초과합니다. 커넥션 누수를 확인하세요."
+
+      # Redis 캐시 적중률 낮음 알림
+      # 5분 동안 캐시 적중률이 50% 미만 시 경고
+      - alert: LowCacheHitRatio
+        expr: cache_redis_hit_ratio < 0.5
+        for: 5m
+        labels:
+          severity: info
+          team: cache
+        annotations:
+          summary: "Redis 캐시 적중률 낮음 ({{ $value | humanizePercentage }})"
+          description: "캐시 전략을 검토하세요. 캐시 크기 또는 만료 정책을 조정할 수 있습니다."
+
+      # 검색 응답 시간 알림
+      # P95 검색 응답 시간이 1초 이상 지속 시 경고
+      - alert: HighSearchResponseTime
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(commerce_search_request_seconds_bucket[5m])) by (le)
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+          team: search
+        annotations:
+          summary: "검색 응답 시간 높음 (P95: {{ $value }}s)"
+          description: "검색 성능이 저하되었습니다. OpenSearch 클러스터 상태를 확인하세요."
