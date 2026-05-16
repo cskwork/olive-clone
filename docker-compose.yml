@@ -49,7 +49,7 @@ services:
       retries: 20
 
   opensearch:
-    image: opensearchproject/opensearch:2
+    image: opensearchproject/opensearch:2.15.0
     container_name: commerce-opensearch
     restart: unless-stopped
     environment:

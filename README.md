@@ -1,79 +1,173 @@
-# commerce-backend
+# Health & Beauty Commerce Backend
 
-Olive Young 스타일의 health & beauty 커머스 백엔드 — Spring Boot 3.x · Java 21 ·
-모듈러 모놀리식. 전체 설계는 `Oliveyoung Like Commerce Backend Design.pdf` (PRD)
-와 `llm-wiki/`에 정리되어 있다.
+Production-style shopping mall backend inspired by health and beauty commerce
+workflows. The project demonstrates the backend architecture behind a modern
+catalog, order, payment, inventory, delivery, review, search, and operations
+stack.
 
-## 사전 준비
+This is an educational portfolio project. It is not affiliated with, endorsed by,
+or connected to any retailer or beauty brand. Demo catalog data and product
+images are for local development and portfolio presentation only.
 
-| 도구 | 버전 | 비고 |
-|---|---|---|
-| JDK | 21 | `brew install openjdk@21` (macOS) — 빌드 toolchain은 Gradle이 자동으로 받아온다. |
-| Gradle | wrapper 사용 | `./gradlew`만 사용한다. 호스트에 별도 설치 불필요. |
+![Catalog console](docs/assets/screenshots/commerce-catalog-console.png)
 
-`JAVA_HOME`이 JDK 21을 가리키도록 한다 (예: macOS Homebrew 기준
-`export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home`).
+## What This Shows
 
-## 자주 쓰는 명령
+- Public catalog API and a Thymeleaf smoke UI at `/products`
+- Product, brand, category, option, image, and inventory domain modeling
+- Member signup/login with JWT access and refresh tokens
+- Cart, order creation, cancellation, payment confirmation, refunds, and mock PG
+  webhooks
+- Delivery lifecycle with carrier retry handling
+- Purchase-verified reviews and review aggregate updates
+- OpenSearch product indexing, public search, autocomplete, and popular keywords
+- Outbox-based async indexing and failure retry behavior
+- Batch jobs, job admin endpoints, sales summary tables, and scheduler locking
+- Actuator health groups, Prometheus metrics, Grafana dashboard provisioning, and
+  k6 load-test scripts
+- Testcontainers-backed integration tests across Postgres, Redis, LocalStack S3,
+  and OpenSearch
+
+## Tech Stack
+
+This repository is intentionally built as a backend-heavy commerce system, not a
+static mock. The local Thymeleaf UI calls the same product API that an external
+frontend would call, while the backend keeps realistic infrastructure boundaries
+for data, cache, search, files, observability, and async work.
+
+| Layer | What is used | How it is used in this project |
+| --- | --- | --- |
+| Language and build | Java 21, Gradle Kotlin DSL, Spring Boot Gradle plugin | Java 21 is the runtime baseline; Gradle wrapper builds, tests, and runs custom boot tasks such as `reindexProducts`. |
+| Application framework | Spring Boot 3.3, Spring MVC, Bean Validation | REST controllers, request validation, service wiring, configuration properties, and local command-style tasks. |
+| Server-side UI | Thymeleaf, static CSS/JS | `/products` is a smoke catalog console that loads data from `/api/products` and renders seeded product images. |
+| Security | Spring Security, OAuth2 Resource Server, Nimbus JOSE JWT | JWT-protected member/admin APIs with local RS256 signing keys for development. |
+| Database | PostgreSQL 16 | Source of truth for products, members, carts, orders, payments, inventory, delivery, reviews, promotions, batch runs, and outbox rows. |
+| Migrations | Flyway 10 | Versioned schema and seed migrations, including the 13-product demo catalog and local image URL migration. |
+| ORM and repositories | Spring Data JPA, Hibernate | Domain repositories and entity mapping for the modular monolith. |
+| Cache and distributed coordination | Redis, Redisson, ShedLock JDBC provider | Catalog cache behavior, inventory/scheduler locking, and safe scheduled job execution. |
+| Search | OpenSearch Java client, OpenSearch REST client | Product indexing, search, autocomplete, popular keywords, and a rebuild task from Postgres. |
+| Async consistency | Transactional outbox table, index worker | Product changes are recorded in Postgres first, then retried into OpenSearch without losing source data. |
+| Object storage | AWS SDK for Java S3 client, LocalStack | S3-compatible local image/upload flows without needing a cloud account. |
+| Observability | Actuator, Micrometer, Prometheus, Grafana, logstash-logback-encoder | Health groups, Prometheus metrics, provisioned dashboard, alert rules, and structured logging. |
+| Testing | JUnit 5, MockMvc, Spring Security Test, Spring Boot Test, Testcontainers | Controller/service tests and integration tests with real Postgres, Redis, LocalStack, and OpenSearch containers. |
+| Load testing | k6 | Product-list and order-create scripts under `infra/k6`. |
+| Local runtime | Docker Compose | One-command local dependencies for Postgres, Redis, LocalStack, OpenSearch, Prometheus, and Grafana. |
+
+More detail: [docs/TECH_STACK.md](docs/TECH_STACK.md)
+
+## Quick Start
+
+Prerequisites:
+
+- Docker Desktop or a Docker-compatible runtime
+- JDK 21. The Gradle wrapper is included, so no system Gradle install is needed.
+- OpenSSL for generating local JWT signing keys
+
+Generate local development JWT keys. These files are intentionally ignored by
+Git.
 
 ```bash
-# 애플리케이션 실행 (포트 8080)
-./gradlew bootRun
+mkdir -p src/main/resources/keys
+openssl genpkey -algorithm RSA -out src/main/resources/keys/app.key -pkeyopt rsa_keygen_bits:2048
+openssl rsa -in src/main/resources/keys/app.key -pubout -out src/main/resources/keys/app.pub
+```
 
-# 단위 테스트
+Start local infrastructure.
+
+```bash
+docker compose up -d postgres redis localstack opensearch
+```
+
+Run the app.
+
+```bash
+./gradlew bootRun --args='--spring.profiles.active=local'
+```
+
+Open the demo:
+
+- UI: http://localhost:8080/products
+- Product API: http://localhost:8080/api/products?size=20
+- Search API: http://localhost:8080/api/search/products?keyword=%EC%84%A0%ED%81%AC%EB%A6%BC&page=0&size=5
+- Health: http://localhost:8080/actuator/health
+- Prometheus metrics: `/actuator/prometheus` is protected by the app security
+  filter. Scrape it with credentials or adjust local security for a metrics-only
+  demo.
+
+Populate OpenSearch after the app and OpenSearch are running:
+
+```bash
+./gradlew reindexProducts --args='--spring.profiles.active=local,reindex --server.port=8082'
+```
+
+## Local Demo Data
+
+Flyway migrations seed a small health and beauty catalog with 13 products across
+skincare, makeup, and hair/body categories. This keeps the UI useful on a fresh
+local database without requiring external fixtures. Demo product images are
+checked in as local static assets, so the catalog renders without external image
+hosting.
+
+More detail: [docs/LOCAL_DEMO.md](docs/LOCAL_DEMO.md)
+
+## Running Tests
+
+```bash
 ./gradlew test
-
-# 단일 jar 빌드 (build/libs/commerce-backend-0.1.0.jar)
-./gradlew build
 ```
 
-기동 후 헬스 체크:
+The suite uses Testcontainers. Docker must be running.
+
+## Architecture
+
+The service is a modular monolith. Domain modules communicate through explicit
+services and domain events; asynchronous work uses an outbox table so search
+indexing and aggregate updates can retry without losing source-of-truth data.
+
+Read the architecture guide: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+
+## API Overview
+
+The public demo focuses on catalog and search, but the backend includes member,
+cart, order, payment, delivery, review, promotion, inventory, and admin APIs.
+
+Read the API map: [docs/API_OVERVIEW.md](docs/API_OVERVIEW.md)
+
+## Observability and Load Testing
+
+Start the observability stack:
 
 ```bash
-curl -s http://localhost:8080/actuator/health/liveness
-# → {"status":"UP"}
+docker compose up -d prometheus grafana
 ```
 
-### Health Endpoints
+- Prometheus: http://localhost:9090
+- Grafana: http://localhost:3000, default local credentials `admin` / `admin`
+- k6 scripts: [infra/k6/README.md](infra/k6/README.md)
 
-| Endpoint | Purpose | Failure Behavior |
-|---|---|---|
-| `/actuator/health/liveness` | **Liveness** - 프로세스存活 확인 | 가벼움, 외부 호출 없음. 실패 시 파드 재시작 |
-| `/actuator/health/readiness` | **Readiness** - 트래픽 수락 가능 여부 | PG/Redis/OpenSearch 모두 UP이어야 함. 실패 시 트래픽 우회 |
-| `/actuator/health/batch` | **Batch** - outbox DLQ 상태 | `dlq=true` 레코드 수 보고. 있으면 DEGRADED |
+The Grafana dashboard is provisioned from
+[infra/grafana/dashboards/commerce-backend.json](infra/grafana/dashboards/commerce-backend.json).
 
-**Contract**:
-- **Liveness** = 프로세스가 살아있음 (JVM 동작 중). DB/Redis가 멈춰도 UP.
-- **Readiness** = 트래픽 받을 준비 완료. PG 아웃티지 = 총 장애로 503, Redis/OpenSearch 아웃티지 = 부분 장애로 503.
-- **Batch** = 배치 작업 상태. DLQ 누적 시 운영자 알림 용도.
+## Documentation Map
 
-이번 부트스트랩 단계에서는 데이터베이스가 의도적으로 비활성화되어 있다
-(`spring.autoconfigure.exclude=DataSourceAutoConfiguration`). PostgreSQL과
-Flyway는 OLV-002 티켓에서 도입되었다.
+- [docs/LOCAL_DEMO.md](docs/LOCAL_DEMO.md): fresh-clone local setup and demo URLs
+- [docs/TECH_STACK.md](docs/TECH_STACK.md): stack choices and why they are here
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): module boundaries and data flow
+- [docs/API_OVERVIEW.md](docs/API_OVERVIEW.md): endpoint groups and sample calls
+- [docs/ASSET_PROVENANCE.md](docs/ASSET_PROVENANCE.md): generated demo image provenance
+- [llm-wiki/INDEX.md](llm-wiki/INDEX.md): deeper implementation notes by domain
+- [infra/k6/README.md](infra/k6/README.md): load-test scripts
+- [CONTRIBUTING.md](CONTRIBUTING.md): contribution and verification workflow
+- [SECURITY.md](SECURITY.md): local credentials and reporting policy
 
-## 패키지 구조
+## Production Notes
 
-```
-com.olive.commerce
-├── member       회원·주소·등급·JWT
-├── product      상품·옵션·이미지·브랜드·카테고리
-├── search       OpenSearch 색인 동기화
-├── cart         장바구니 (익명·회원 병합)
-├── order        주문 상태 머신 + 상품 스냅샷
-├── payment      PG 연동 + 멱등 웹훅
-├── inventory    옵션 단위 재고 + 분산 락
-├── promotion    쿠폰·포인트
-├── delivery     배송 + 캐리어 비동기
-├── review       구매 검증 리뷰
-├── admin        백오피스
-└── common       공통 인프라 (config, error, util)
-```
+This project is a portfolio-grade backend, not a hosted production deployment.
+Before using it for real traffic, replace all local credentials, store JWT keys
+in a secret manager, configure a real PG provider, harden CORS/rate limits, add
+API documentation generation, and review every `TODO` that marks an intentionally
+mocked or simplified integration.
 
-도메인 간 통신은 `ApplicationEventPublisher` + outbox 테이블만 사용한다
-(직접 repository 호출 금지 — `llm-wiki/00-architecture-overview.md`).
+## License
 
-## 작업 흐름
-
-이 저장소의 모든 변경은 7단계 Symphony 파이프라인을 따른다:
-**Todo → Explore → In Progress → Review → QA → Learn → Done**.
-자세한 규칙은 [`WORKFLOW.md`](./WORKFLOW.md)에 있다.
+MIT. See [LICENSE](LICENSE).

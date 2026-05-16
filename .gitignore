@@ -5,6 +5,7 @@ out/
 
 # Logs
 *.log
+*.bak
 
 # IDE
 .idea/
@@ -26,6 +27,9 @@ application-local-personal.yml
 # Symphony runtime artifacts
 /log/
 /.tui-launcher.command
+
+# Browser verification scratch output
+.playwright-mcp/
 
 # Archon MCP configs (may reference env-var-only tokens)
 /.archon/mcp/
