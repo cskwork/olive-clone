@@ -5,6 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const shell = document.querySelector(".shell");
   const catalog = document.querySelector("#catalog");
   const emptyState = document.querySelector("#emptyState");
+  const skeleton = document.querySelector("#skeleton");
   const totalProducts = document.querySelector("#totalProducts");
   const rangeLabel = document.querySelector("#rangeLabel");
   const lastRefreshed = document.querySelector("#lastRefreshed");
@@ -77,12 +78,24 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
+  const showSkeleton = (show) => {
+    if (!skeleton) return;
+    skeleton.hidden = !show;
+  };
+
   const setEmpty = (title, detail, variant) => {
+    showSkeleton(false);
     emptyState.hidden = false;
     emptyState.classList.toggle("error", variant === "error");
     emptyState.querySelector("strong").textContent = title;
     emptyState.querySelector("span").textContent = detail;
     retryBtn.hidden = variant !== "error";
+  };
+
+  const hideEmpty = () => {
+    emptyState.hidden = true;
+    emptyState.classList.remove("error");
+    retryBtn.hidden = true;
   };
 
   const clearProducts = () => {
@@ -139,66 +152,131 @@ document.addEventListener("DOMContentLoaded", () => {
     return true;
   };
 
+  const buildThumb = (product) => {
+    const thumb = document.createElement("div");
+    thumb.className = "thumb";
+    const altLabel = [product.brandName, product.productName]
+      .filter(Boolean)
+      .join(" — ") || "Product image";
+
+    if (isBrowserSafeThumbnailUrl(product.thumbnailUrl)) {
+      const safeHref = new URL(product.thumbnailUrl, window.location.origin).href;
+      const img = document.createElement("img");
+      img.src = safeHref;
+      img.alt = altLabel;
+      img.loading = "lazy";
+      img.decoding = "async";
+      img.referrerPolicy = "no-referrer";
+      img.addEventListener("error", () => {
+        thumb.classList.add("empty");
+        thumb.replaceChildren(document.createTextNode("No image"));
+      }, { once: true });
+      thumb.append(img);
+    } else {
+      thumb.classList.add("empty");
+      thumb.append(document.createTextNode("No image"));
+    }
+
+    const discount = Number(product.discountRate || 0);
+    if (discount > 0) {
+      const badge = document.createElement("span");
+      badge.className = "thumb-badge";
+      badge.setAttribute("aria-label", `${discount} percent off`);
+      badge.textContent = `-${discount}%`;
+      thumb.append(badge);
+    }
+    return thumb;
+  };
+
+  const buildMain = (product) => {
+    const main = document.createElement("div");
+    main.className = "product-main";
+
+    const brand = document.createElement("p");
+    brand.className = "brand";
+    brand.textContent = product.brandName || "Brand";
+
+    const title = document.createElement("h2");
+    if (product.productId !== undefined && product.productId !== null) {
+      const idChip = document.createElement("span");
+      idChip.className = "id-chip";
+      idChip.textContent = `#${product.productId}`;
+      title.append(idChip);
+    }
+    title.append(document.createTextNode(product.productName || "Untitled product"));
+
+    main.append(brand, title);
+    return main;
+  };
+
+  const buildMeta = (product) => {
+    const meta = document.createElement("div");
+    meta.className = "meta";
+
+    const rating = document.createElement("span");
+    rating.className = "rating";
+    const ratingValue = Number(product.rating ?? 0);
+    rating.textContent = Number.isFinite(ratingValue) ? ratingValue.toFixed(1) : "0.0";
+    rating.setAttribute("aria-label", `Rating ${rating.textContent} out of 5`);
+
+    const reviews = document.createElement("span");
+    const reviewCount = Number(product.reviewCount ?? 0);
+    reviews.textContent = `${numberFmt.format(reviewCount)} reviews`;
+
+    meta.append(rating, reviews);
+    return meta;
+  };
+
+  const buildPrice = (product) => {
+    const price = document.createElement("div");
+    price.className = "price-stack";
+
+    const discount = Number(product.discountRate || 0);
+    if (discount > 0) {
+      const discountEl = document.createElement("span");
+      discountEl.className = "discount";
+      discountEl.textContent = `${discount}% OFF`;
+      price.append(discountEl);
+    }
+
+    const sale = document.createElement("strong");
+    sale.textContent = money(product.salePrice);
+    sale.setAttribute("aria-label", `Sale price ${sale.textContent}`);
+    price.append(sale);
+
+    if (
+      product.originalPrice !== null
+      && product.originalPrice !== undefined
+      && Number(product.originalPrice) !== Number(product.salePrice)
+    ) {
+      const original = document.createElement("span");
+      original.className = "strike";
+      original.textContent = money(product.originalPrice);
+      original.setAttribute("aria-label", `Original price ${original.textContent}`);
+      price.append(original);
+    }
+    return price;
+  };
+
   const renderProducts = (products) => {
     clearProducts();
-    emptyState.hidden = products.length > 0;
+    if (products.length > 0) {
+      hideEmpty();
+    }
 
+    const frag = document.createDocumentFragment();
     products.forEach((product) => {
       const row = document.createElement("article");
       row.className = "product-row";
-
-      const thumb = document.createElement("div");
-      thumb.className = "thumb";
-      if (isBrowserSafeThumbnailUrl(product.thumbnailUrl)) {
-        const safeHref = new URL(product.thumbnailUrl, window.location.origin).href;
-        thumb.style.backgroundImage = `url("${safeHref.replace(/"/g, "%22")}")`;
-      }
-
-      const main = document.createElement("div");
-      main.className = "product-main";
-
-      const brand = document.createElement("p");
-      brand.className = "brand";
-      brand.textContent = product.brandName || "Brand";
-
-      const title = document.createElement("h2");
-      if (product.productId !== undefined && product.productId !== null) {
-        const idChip = document.createElement("span");
-        idChip.className = "id-chip";
-        idChip.textContent = `#${product.productId}`;
-        title.append(idChip);
-      }
-      title.append(document.createTextNode(product.productName || "Untitled product"));
-
-      const meta = document.createElement("div");
-      meta.className = "meta";
-      const rating = document.createElement("span");
-      rating.textContent = `★ ${product.rating ?? 0}`;
-      const reviews = document.createElement("span");
-      reviews.textContent = `${numberFmt.format(Number(product.reviewCount ?? 0))} reviews`;
-      meta.append(rating, reviews);
-      main.append(brand, title, meta);
-
-      const price = document.createElement("div");
-      price.className = "price-stack";
-      if (Number(product.discountRate || 0) > 0) {
-        const discount = document.createElement("span");
-        discount.className = "discount";
-        discount.textContent = `${product.discountRate}% off`;
-        price.append(discount);
-      }
-      const sale = document.createElement("strong");
-      sale.textContent = money(product.salePrice);
-      price.append(sale);
-      if (product.originalPrice !== null && product.originalPrice !== undefined) {
-        const original = document.createElement("span");
-        original.textContent = money(product.originalPrice);
-        price.append(original);
-      }
-
-      row.append(thumb, main, price);
-      catalog.append(row);
+      row.append(
+        buildThumb(product),
+        buildMain(product),
+        buildMeta(product),
+        buildPrice(product)
+      );
+      frag.append(row);
     });
+    catalog.append(frag);
   };
 
   const updateRange = (totalElements, pageCount) => {
@@ -248,7 +326,8 @@ document.addEventListener("DOMContentLoaded", () => {
     updateEndpointPreview(sort, currentPage);
     setControlsBusy(true);
     setStatus("CHECKING");
-    setEmpty("Loading products", "Connecting to /api/products.");
+    hideEmpty();
+    showSkeleton(true);
     totalProducts.textContent = "0";
     rangeLabel.textContent = "—";
     clearProducts();
@@ -301,6 +380,7 @@ document.addEventListener("DOMContentLoaded", () => {
     totalProducts.textContent = numberFmt.format(total);
     setStatus("UP", latencyMs);
     lastRefreshed.textContent = timeFmt.format(new Date());
+    showSkeleton(false);
     renderProducts(products);
     updateRange(total, products.length);
     updatePager(total);

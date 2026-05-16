@@ -34,7 +34,7 @@ class StorefrontControllerTest {
             .andExpect(model().attribute("selectedPage", 0))
             .andExpect(model().attribute("pageSize", 20))
             .andExpect(content().contentTypeCompatibleWith("text/html"))
-            .andExpect(content().string(containsString("Olive Commerce Console")))
+            .andExpect(content().string(containsString("Commerce Catalog Console")))
             .andExpect(content().string(containsString("Connecting to /api/products")))
             .andExpect(content().string(containsString("/js/storefront.js")))
             .andExpect(content().string(containsString("data-page-size=\"20\"")))
