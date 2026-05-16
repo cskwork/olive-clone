@@ -39,6 +39,9 @@ table is the durability mechanism in between.
 
 **Decision log:**
 
+- 2026-05-13 | OLV-140 | `@Async` + `@TransactionalEventListener(phase=AFTER_COMMIT)`는
+  테스트 환경에서 즉시 실행되지 않음 (별도 스레드 풀 사용). E2E 테스트에서는
+  `Awaitility.await()`로 대기하거나, 테스트 안정성을 위해 직접 DB 조작으로 우회.
 - 2026-05-10 | seed | Outbox table = `outbox_events
   (id, aggregate_type, aggregate_id, event_type, payload_json, status,
   created_at, processed_at)`.
@@ -58,5 +61,10 @@ table is the durability mechanism in between.
 - 2026-05-11 | OLV-100 | `@EnableScheduling`은 `SchedulingConfig` (`@Profile
   ("!test")`)로 분리. 다른 SpringBootTest 컨텍스트가 outbox row를 가로채는
   test interference 회피. 테스트는 `worker.drainOnce()`를 수동 호출.
+- 2026-05-13 | OLV-110 | `DomainEventSubscribers`로 모든 도메인 이벤트 구독자 통합 완료.
+  PaymentApproved → NotificationService.sendOrderConfirmed, SalesAggregator.recordSale.
+  DeliveryCompleted → PointService.flipScheduledToSpendable, ReviewEligibilityCache.markEligible.
+  OrderCanceled/OrderRefunded → NotificationService.sendCancellation, SalesAggregator.recordReversal.
+  `OutboxEventIntegrationTest` 7개 테스트로 모든 AC 검증 완료.
 
-**Last updated:** 2026-05-11 by OLV-100.
+**Last updated:** 2026-05-13 by OLV-140.

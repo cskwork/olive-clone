@@ -87,4 +87,20 @@ public interface PointHistoryRepository extends JpaRepository<PointHistory, Long
      */
     @Query(value = "SELECT * FROM points WHERE member_id = :memberId FOR UPDATE", nativeQuery = true)
     Optional<Object> lockByMemberIdForUpdate(@Param("memberId") Long memberId);
+
+    /**
+     * 주문의 특정 타입이고 미래 사용 가능일인 포인트 내역을 조회합니다.
+     * <p>배송 완료 시 즉시 적립 전환을 위해 사용합니다.
+     *
+     * @param orderId     주문 ID
+     * @param changeType  변화 타입
+     * @param availableAt 사용 가능일 기준
+     * @return 포인트 내역 목록
+     */
+    @Query("SELECT h FROM PointHistory h WHERE h.orderId = :orderId AND h.changeType = :changeType AND h.availableAt > :availableAt")
+    List<PointHistory> findByOrderIdAndChangeTypeAndAvailableAtAfter(
+            @Param("orderId") Long orderId,
+            @Param("changeType") PointHistory.ChangeType changeType,
+            @Param("availableAt") OffsetDateTime availableAt
+    );
 }

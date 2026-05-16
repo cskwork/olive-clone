@@ -85,7 +85,10 @@ public class OutboxIndexerWorker {
      */
     private List<OutboxEvent> claimBatch() {
         return txTemplate.execute(status -> {
-            List<OutboxEvent> rows = outboxRepository.findPendingBatch(PageRequest.of(0, ProductIndexer.BULK_SIZE));
+            List<OutboxEvent> rows = outboxRepository.findPendingBatchByEventType(
+                "PRODUCT_INDEX_SYNC",
+                PageRequest.of(0, ProductIndexer.BULK_SIZE)
+            );
             for (OutboxEvent row : rows) {
                 row.markInProgress();
             }

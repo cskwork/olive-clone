@@ -38,6 +38,11 @@ moves to OpenSearch as soon as catalog scales.
 **Files of interest:**
 
 - PRD §6.3, §13, §15.3.
+- `SearchPublicController` — 3 endpoints (`/api/search/products`, `/api/search/autocomplete`, `/api/search/popular`).
+- `SearchService` — OS bool query + DB hydration (N+1 없음: `WHERE id IN (...)` 단일 batch).
+- `AutocompleteService` — `match_phrase_prefix` + `prefix` bool query, Redis 5분 캐시.
+- `SearchPopularityRecorder` — 분 단위 ZSET 누적 (`search:popular:bucket:{epochMinute}`).
+- `SearchPopularityAggregator` — 1분 주기 ZUNIONSTORE로 직전 60분 집계, `@Profile("!test")`.
 
 **Decision log:**
 
@@ -65,5 +70,17 @@ moves to OpenSearch as soon as catalog scales.
     `POST /api/admin/search/reindex/{productId}` (outbox 경유, 202 Accepted).
   - 전체 재색인: `./gradlew reindexProducts` — `reindex` 프로필로 부팅 후
     100건 페이지로 bulk index + `SpringApplication.exit`.
+- 2026-05-13 | OLV-101 | **Read-path 구현** — Search API 3종 + 인기검색어 집계.
+  - Plan A 채택: 매핑 변경 없이 기존 9필드 그대로 질의. categoryId/brandId는 DB
+    lookup으로 name 변환 후 term filter. hydration은 size≤100 단일 batch라 N+1 위험 없음.
+  - `/api/search/products`: `_score`/salesCount/createdAt desc/salePrice/rating 정렬,
+    status=ON_SALE 강제 filter. OS 다운 시 503 `SEARCH_UNAVAILABLE`(메시지 "검색 일시 중단").
+  - `/api/search/autocomplete`: `should` bool (match_phrase_prefix on productName,
+    prefix on brandName/tags). Redis 5분 캐시 (`cache:search:autocomplete:{prefix-lower}:{size}`).
+  - `/api/search/popular`: `SearchPopularityRecorder`가 분-bucket ZSET에 ZINCRBY 누적
+    (TTL 65분). `SearchPopularityAggregator`가 1분 주기 ZUNIONSTORE로 직전 60분 합산
+    → `search:popular:current` ZSET (TTL 2분). Redis 실패 시 검색 결과는 정상, 인기검색어만
+    디그레이드 (빈 리스트 반환).
+  - 테스트: SearchApiIT (AC1/AC2/AC3), AutocompleteApiIT (AC4), PopularKeywordsApiIT (AC5).
 
-**Last updated:** 2026-05-11 by OLV-100.
+**Last updated:** 2026-05-13 by OLV-101.

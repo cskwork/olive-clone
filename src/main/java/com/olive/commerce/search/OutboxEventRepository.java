@@ -33,6 +33,32 @@ public interface OutboxEventRepository extends JpaRepository<OutboxEvent, Long> 
         """)
     List<OutboxEvent> findPendingBatch(Pageable pageable);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints({
+        @jakarta.persistence.QueryHint(name = "jakarta.persistence.lock.timeout", value = "-2")
+    })
+    @Query("""
+        SELECT o FROM OutboxEvent o
+        WHERE o.status = 'PENDING'
+          AND o.dlq = false
+          AND o.eventType = :eventType
+        ORDER BY o.id ASC
+        """)
+    List<OutboxEvent> findPendingBatchByEventType(@Param("eventType") String eventType, Pageable pageable);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints({
+        @jakarta.persistence.QueryHint(name = "jakarta.persistence.lock.timeout", value = "-2")
+    })
+    @Query("""
+        SELECT o FROM OutboxEvent o
+        WHERE o.status = 'PENDING'
+          AND o.dlq = false
+          AND o.eventType IN :eventTypes
+        ORDER BY o.id ASC
+        """)
+    List<OutboxEvent> findPendingBatchByEventTypeIn(@Param("eventTypes") List<String> eventTypes, Pageable pageable);
+
     /**
      * 특정 event_type의 PENDING/DLQ 카운트(어드민 모니터링).
      */

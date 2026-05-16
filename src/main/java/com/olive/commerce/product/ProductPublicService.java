@@ -397,6 +397,19 @@ public class ProductPublicService {
     }
 
     @SuppressWarnings("unchecked")
+    private BigDecimal toBigDecimal(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof BigDecimal) {
+            return (BigDecimal) value;
+        }
+        if (value instanceof Number) {
+            return BigDecimal.valueOf(((Number) value).doubleValue());
+        }
+        throw new IllegalArgumentException("Cannot convert " + value + " to BigDecimal");
+    }
+
     private Page<ProductDtos.PublicListItem> deserializeListPage(String json, int page, int size)
         throws JsonProcessingException {
         Map<String, Object> data = objectMapper.readValue(json, Map.class);
@@ -407,11 +420,11 @@ public class ProductPublicService {
                 ((Number) row.get("productId")).longValue(),
                 (String) row.get("brandName"),
                 (String) row.get("productName"),
-                (BigDecimal) row.get("salePrice"),
-                (BigDecimal) row.get("originalPrice"),
-                (BigDecimal) row.get("discountRate"),
+                toBigDecimal(row.get("salePrice")),
+                toBigDecimal(row.get("originalPrice")),
+                toBigDecimal(row.get("discountRate")),
                 (String) row.get("thumbnailUrl"),
-                (BigDecimal) row.get("rating"),
+                toBigDecimal(row.get("rating")),
                 (Integer) row.get("reviewCount")
             ))
             .toList();

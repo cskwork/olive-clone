@@ -4,6 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -47,4 +48,14 @@ public interface MemberCouponRepository extends JpaRepository<MemberCoupon, Long
      */
     @Query("SELECT mc FROM MemberCoupon mc JOIN FETCH mc.coupon WHERE mc.id = :id")
     Optional<MemberCoupon> findByIdWithCoupon(@Param("id") Long id);
+
+    /**
+     * 만료일이 지난 ISSUED 상태의 회원 쿠폰을 조회합니다 (배치 처리용, PRD §17).
+     * idx_member_coupons_status_expires 인덱스 활용.
+     *
+     * @param asOf 기준 시점
+     * @return 만료된 회원 쿠폰 목록
+     */
+    @Query("SELECT mc FROM MemberCoupon mc WHERE mc.status = 'ISSUED' AND mc.expiresAt < :asOf")
+    List<MemberCoupon> findIssuedWithExpiredDate(@Param("asOf") OffsetDateTime asOf);
 }

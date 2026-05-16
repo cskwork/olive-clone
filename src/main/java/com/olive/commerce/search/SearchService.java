@@ -11,6 +11,7 @@ import com.olive.commerce.product.Product;
 import com.olive.commerce.product.ProductDtos;
 import com.olive.commerce.product.ProductImageRepository;
 import com.olive.commerce.product.ProductRepository;
+import io.micrometer.core.instrument.Timer;
 import org.opensearch.client.opensearch.OpenSearchClient;
 import org.opensearch.client.opensearch._types.OpenSearchException;
 import org.opensearch.client.opensearch._types.SortOrder;
@@ -51,6 +52,7 @@ public class SearchService {
     private final BrandRepository brandRepository;
     private final CategoryRepository categoryRepository;
     private final SearchPopularityRecorder popularityRecorder;
+    private final SearchMetrics searchMetrics;
 
     public SearchService(
         OpenSearchClient client,
@@ -58,7 +60,8 @@ public class SearchService {
         ProductImageRepository productImageRepository,
         BrandRepository brandRepository,
         CategoryRepository categoryRepository,
-        SearchPopularityRecorder popularityRecorder
+        SearchPopularityRecorder popularityRecorder,
+        SearchMetrics searchMetrics
     ) {
         this.client = client;
         this.productRepository = productRepository;
@@ -66,6 +69,7 @@ public class SearchService {
         this.brandRepository = brandRepository;
         this.categoryRepository = categoryRepository;
         this.popularityRecorder = popularityRecorder;
+        this.searchMetrics = searchMetrics;
     }
 
     public SearchResult searchProducts(
@@ -76,6 +80,8 @@ public class SearchService {
         int page,
         int size
     ) {
+        Timer.Sample timer = Timer.start();
+
         String normalizedKeyword = keyword == null ? "" : keyword.trim();
         SearchDtos.SortOption effectiveSort = sort != null ? sort : SearchDtos.SortOption.RELEVANCE;
 
@@ -116,7 +122,9 @@ public class SearchService {
         long total = response.hits().total() != null ? response.hits().total().value() : 0L;
         List<ProductDtos.PublicListItem> items = hydrate(hitIds);
         PageMeta meta = new PageMeta(page, size, total);
-        return new SearchResult(items, meta);
+
+        SearchResult result = new SearchResult(items, meta);
+        return searchMetrics.recordSearch(timer, result);
     }
 
     private Query buildQuery(String keyword, Long categoryId, Long brandId) {
