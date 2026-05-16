@@ -5,9 +5,11 @@ import com.olive.commerce.common.config.InventoryLockProperties;
 import com.olive.commerce.common.error.BusinessException;
 import com.olive.commerce.common.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,7 +17,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -30,14 +34,15 @@ import java.util.concurrent.TimeUnit;
  * DB 락({@code SELECT ... FOR UPDATE})으로 폴백한다.
  */
 @Service
-@Slf4j
 @RequiredArgsConstructor
 public class InventoryService {
+
+    private static final Logger log = LoggerFactory.getLogger(InventoryService.class);
 
     private final InventoryRepository inventoryRepository;
     private final InventoryHistoryRepository historyRepository;
     private final InventoryReservationRepository reservationRepository;
-    private final RedissonClient redissonClient;
+    private final ObjectProvider<RedissonClient> redissonClientProvider;
     private final InventoryLockProperties lockProperties;
     private final AuditLogger auditLogger;
 
@@ -76,6 +81,15 @@ public class InventoryService {
      * Redisson RLock을 사용한 예약 (기본 경로).
      */
     private void reserveWithRedisLock(Long orderId, List<ReserveItem> items, Duration ttl) {
+        RedissonClient redissonClient = redissonClientProvider.getIfAvailable();
+        if (redissonClient == null) {
+            if (lockProperties.isFallbackToDb()) {
+                reserveWithDbLock(orderId, items, ttl);
+                return;
+            }
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Redisson client is not available");
+        }
+
         // option_id 정렬 (deadlock 방지, PRD §10.2)
         List<Long> sortedOptionIds = items.stream()
                 .map(ReserveItem::optionId)
@@ -160,11 +174,22 @@ public class InventoryService {
      * 실제 예약 로직 (공통).
      */
     private void doReserve(Long orderId, List<ReserveItem> items, Duration ttl) {
+        Map<Long, Inventory> inventories = new HashMap<>();
+        List<Long> sortedOptionIds = items.stream()
+                .map(ReserveItem::optionId)
+                .sorted()
+                .distinct()
+                .toList();
+        for (Long optionId : sortedOptionIds) {
+            Inventory inventory = inventoryRepository.findByProductOptionIdForUpdate(optionId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_OPTION_NOT_FOUND,
+                            "Inventory not found for option: " + optionId));
+            inventories.put(optionId, inventory);
+        }
+
         // 1. 모든 아이템의 재고 검증
         for (ReserveItem item : items) {
-            Inventory inventory = inventoryRepository.findByProductOptionId(item.optionId())
-                    .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_OPTION_NOT_FOUND,
-                            "Inventory not found for option: " + item.optionId()));
+            Inventory inventory = inventories.get(item.optionId());
 
             if (!inventory.hasAvailable(item.quantity())) {
                 throw new BusinessException(ErrorCode.INSUFFICIENT_INVENTORY,
@@ -176,8 +201,7 @@ public class InventoryService {
 
         // 2. 모든 아이템 예약 (검증 통과 후)
         for (ReserveItem item : items) {
-            Inventory inventory = inventoryRepository.findByProductOptionId(item.optionId())
-                    .orElseThrow();
+            Inventory inventory = inventories.get(item.optionId());
 
             // 중복 예약 방지 (UNIQUE 제약 활용)
             if (reservationRepository.findByOrderIdAndProductOptionId(orderId, item.optionId()).isPresent()) {

@@ -233,6 +233,13 @@ public class Order {
 
     // Getters
     public Long getId() { return id; }
+
+    /**
+     * 테스트용 ID 설정자.
+     */
+    public void setId(Long id) {
+        this.id = id;
+    }
     public String getOrderNo() { return orderNo; }
     public Long getMemberId() { return memberId; }
     public OrderStatus getStatus() { return OrderStatus.valueOf(status); }

@@ -23,6 +23,8 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -55,6 +57,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Import({InventoryService.class, RedissonConfig.class})
 @EnableConfigurationProperties(InventoryLockProperties.class)
 @Testcontainers
+@Transactional(propagation = Propagation.NOT_SUPPORTED)
 class InventoryServiceConcurrentTest extends PostgresIntegrationSupport {
 
     @MockBean
@@ -87,6 +90,7 @@ class InventoryServiceConcurrentTest extends PostgresIntegrationSupport {
     static void redisProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.data.redis.host", redis::getHost);
         registry.add("spring.data.redis.port", redis::getFirstMappedPort);
+        registry.add("inventory.lock.redis.enabled", () -> "true");
     }
 
     private static final int INITIAL_STOCK = 30;
@@ -106,7 +110,6 @@ class InventoryServiceConcurrentTest extends PostgresIntegrationSupport {
         Inventory inventory = Inventory.create(testOptionId);
         inventory.addStock(INITIAL_STOCK);
         inventoryRepository.save(inventory);
-        em.flush();
         em.clear();
     }
 
@@ -195,7 +198,6 @@ class InventoryServiceConcurrentTest extends PostgresIntegrationSupport {
                 Duration.ofSeconds(1)
         );
 
-        em.flush();
         em.clear();
 
         Inventory afterReserve = inventoryRepository.findByProductOptionId(testOptionId).orElseThrow();
@@ -209,7 +211,6 @@ class InventoryServiceConcurrentTest extends PostgresIntegrationSupport {
         int released = inventoryService.releaseExpired();
         assertThat(released).isEqualTo(1);
 
-        em.flush();
         em.clear();
 
         // 4. available 복구 검증
@@ -230,13 +231,11 @@ class InventoryServiceConcurrentTest extends PostgresIntegrationSupport {
                 Duration.ofMinutes(15)
         );
 
-        em.flush();
         em.clear();
 
         // 2. commit
         inventoryService.commit(30000L);
 
-        em.flush();
         em.clear();
 
         Inventory afterCommit = inventoryRepository.findByProductOptionId(testOptionId).orElseThrow();
@@ -246,7 +245,6 @@ class InventoryServiceConcurrentTest extends PostgresIntegrationSupport {
         // 3. release (idempotent)
         inventoryService.release(30000L, "결제 취소"); // 에러 없이 무시됨
 
-        em.flush();
         em.clear();
 
         // 상태 변화 없음
@@ -270,7 +268,6 @@ class InventoryServiceConcurrentTest extends PostgresIntegrationSupport {
 
         inventoryService.commit(40000L);
 
-        em.flush();
         em.clear();
 
         // history 테이블 검증
@@ -307,7 +304,6 @@ class InventoryServiceConcurrentTest extends PostgresIntegrationSupport {
         Inventory inventory2 = Inventory.create(optionId2);
         inventory2.addStock(INITIAL_STOCK);
         inventoryRepository.save(inventory2);
-        em.flush();
         em.clear();
 
         // 10개 스레드가 각각 다른 순서로 예약 시도

@@ -11,7 +11,8 @@ import com.olive.commerce.product.ProductOption;
 import com.olive.commerce.product.ProductOptionRepository;
 import com.olive.commerce.product.ProductRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,9 +32,10 @@ import java.util.stream.Collectors;
  * 로그인 시 병합 로직을 포함한다 (PRD §6.4, §8.2).
  */
 @Service
-@Slf4j
 @RequiredArgsConstructor
 public class CartService {
+
+    private static final Logger log = LoggerFactory.getLogger(CartService.class);
 
     private static final String ANON_CART_KEY_PREFIX = "cart:anon:";
     private static final Duration ANON_CART_TTL = Duration.ofDays(30);

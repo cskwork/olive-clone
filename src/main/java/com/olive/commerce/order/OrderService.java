@@ -8,6 +8,9 @@ import com.olive.commerce.inventory.InventoryService;
 import com.olive.commerce.member.MemberAddress;
 import com.olive.commerce.member.MemberAddressRepository;
 import com.olive.commerce.member.MemberRepository;
+import com.olive.commerce.payment.Payment;
+import com.olive.commerce.payment.PaymentDtos;
+import com.olive.commerce.payment.PaymentRepository;
 import com.olive.commerce.product.ProductOption;
 import com.olive.commerce.product.ProductOptionRepository;
 import com.olive.commerce.promotion.CouponService;
@@ -17,7 +20,8 @@ import com.olive.commerce.search.OutboxEvent;
 import com.olive.commerce.search.OutboxEventRepository;
 import com.olive.commerce.common.util.PIIMasker;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -28,6 +32,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -42,9 +47,10 @@ import java.util.stream.Collectors;
  * 8단계 주문 생성 파이프라인 구현 (PRD §8.3).
  */
 @Service
-@Slf4j
 @RequiredArgsConstructor
 public class OrderService {
+
+    private static final Logger log = LoggerFactory.getLogger(OrderService.class);
 
     private static final Duration RESERVATION_TTL = Duration.ofMinutes(15);
     private static final BigDecimal FREE_SHIPPING_THRESHOLD = new BigDecimal("30000");
@@ -63,6 +69,7 @@ public class OrderService {
     private final InventoryService inventoryService;
     private final CouponService couponService;
     private final PointService pointService;
+    private final PaymentRepository paymentRepository;
 
     private final AuditLogger auditLogger;
     private final ApplicationEventPublisher eventPublisher;
@@ -226,9 +233,20 @@ public class OrderService {
             pointService.use(memberId, request.usePointAmount(), order.getId());
         }
 
-        // Step 8: 결제 요청 정보 생성 (payments 테이블은 OLV-052에서 구현 예정)
-        // 현재는 order PK를 paymentKey로 반환
-        Long paymentKey = order.getId();
+        // Step 8: 결제 요청 정보 생성 (Payment 레코드 생성)
+        UUID idempotencyKeyUuid = idempotencyKey != null && !idempotencyKey.isBlank()
+                ? UUID.nameUUIDFromBytes(idempotencyKey.getBytes(StandardCharsets.UTF_8))
+                : UUID.randomUUID();
+        Payment payment = Payment.createRequest(
+                order,
+                Payment.PaymentMethod.CARD,
+                finalCalculation.grandTotal(),
+                idempotencyKeyUuid
+        );
+        paymentRepository.save(payment);
+
+        // paymentKey 반환 (실제 PG 연동 전이므로 임시값 사용)
+        Long paymentKey = payment.getId();
 
         // 상태를 PAYMENT_PENDING으로 전이
         order.toPaymentPending();

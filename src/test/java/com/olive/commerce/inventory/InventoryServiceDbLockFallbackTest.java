@@ -20,6 +20,8 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -49,6 +51,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @TestPropertySource(properties = {
     "inventory.lock.fallbackToDb=true"
 })
+@Transactional(propagation = Propagation.NOT_SUPPORTED)
 class InventoryServiceDbLockFallbackTest extends PostgresIntegrationSupport {
 
     @Autowired
@@ -86,7 +89,6 @@ class InventoryServiceDbLockFallbackTest extends PostgresIntegrationSupport {
         Inventory inventory = Inventory.create(testOptionId);
         inventory.addStock(INITIAL_STOCK);
         inventoryRepository.save(inventory);
-        em.flush();
         em.clear();
     }
 
@@ -184,7 +186,6 @@ class InventoryServiceDbLockFallbackTest extends PostgresIntegrationSupport {
         Inventory inventory2 = Inventory.create(optionId2);
         inventory2.addStock(INITIAL_STOCK);
         inventoryRepository.save(inventory2);
-        em.flush();
         em.clear();
 
         // 10개 스레드가 각각 다른 순서로 예약 시도
@@ -237,7 +238,6 @@ class InventoryServiceDbLockFallbackTest extends PostgresIntegrationSupport {
 
         inventoryService.commit(80000L);
 
-        em.flush();
         em.clear();
 
         // history 테이블 검증

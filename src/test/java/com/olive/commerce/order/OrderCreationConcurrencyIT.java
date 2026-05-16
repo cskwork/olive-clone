@@ -2,6 +2,7 @@ package com.olive.commerce.order;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.olive.commerce.common.persistence.PostgresIntegrationSupport;
+import com.olive.commerce.common.security.JwtTokenProvider;
 import com.olive.commerce.common.security.AuthenticatedUser;
 import com.olive.commerce.member.MemberRole;
 import org.junit.jupiter.api.AfterEach;
@@ -46,6 +47,9 @@ class OrderCreationConcurrencyIT extends PostgresIntegrationSupport {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private JwtTokenProvider jwtTokenProvider;
 
     private String baseUrl;
     private Long memberId;
@@ -231,16 +235,8 @@ class OrderCreationConcurrencyIT extends PostgresIntegrationSupport {
      */
     private HttpHeaders createAuthHeaders() {
         HttpHeaders headers = new HttpHeaders();
-
-        // 실제 JWT를 생성하거나, 테스트용 인증 헤더를 사용
-        // 여기서는 TestRestTemplate의 기본 인증을 사용하거나,
-        // SecurityConfig에 테스트용 인증을 추가해야 함
-
-        // 간단한 방법: memberId를 헤더에 추가 (SecurityConfig에서 지원 시)
-        // 또는 TestRestTemplate.withBasicAuth() 사용
-
-        // 임시: memberId를 쿼리 파라미터로 전달하는 방식 (실제 구현에서는 JWT 필요)
-        // 여기서는 빈 헤더를 반환하고, 실제 테스트에서는 인증 우회가 필요할 수 있음
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(jwtTokenProvider.issueAccess(memberId, MemberRole.USER));
 
         return headers;
     }
