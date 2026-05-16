@@ -115,8 +115,32 @@ public class Payment {
         this.failedReason = failedReason;
     }
 
+    /**
+     * 웹훅 등 외부에서 상태 직접 변경 (OLV-073).
+     * <p>
+     * 주의: 내부 상태 전이 규칙은 검증하지 않음.
+     * 호출자가 유효한 상태 전임을 보장해야 함.
+     */
+    public void setStatus(PaymentStatus status) {
+        this.status = status;
+    }
+
+    /**
+     * 실패 사유 설정.
+     */
+    public void setFailedReason(String failedReason) {
+        this.failedReason = failedReason;
+    }
+
     // Getters
     public Long getId() { return id; }
+
+    /**
+     * 테스트용 ID 설정자.
+     */
+    public void setId(Long id) {
+        this.id = id;
+    }
     public Order getOrder() { return order; }
     public String getPaymentKey() { return paymentKey; }
     public String getPgProvider() { return pgProvider; }

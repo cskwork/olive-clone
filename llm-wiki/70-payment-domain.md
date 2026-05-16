@@ -58,5 +58,11 @@ and the PG callback as the source of truth (PRD §6.6, §8.4, §15.1, §20.4).
   Behaviour field controls approve/fail/timeout modes for QA testing without app
   restart. @ConditionalOnProperty separates PG implementations by environment.
   PgTimeoutException added. ErrorCode extended with PG_TIMEOUT/PG_FAILED/PG_WEBHOOK_INVALID.
+- 2026-05-12 | OLV-073 | Webhook handler implemented. POST /api/payments/webhook with HMAC-SHA256
+  signature verification (Mock PG), Redis deduplication (SETNX with 5min TTL on
+  `webhook:dedup:{paymentKey}:{status}`), state-based reconciliation (APPROVED reuses
+  confirm path, FAILED/CANCELED updates status only, REFUNDED validates REFUND_REQUESTED).
+  Always returns 200 to allow PG retries. Webhook is authoritative source of truth
+  per PRD §6.6.
 
-**Last updated:** 2026-05-12 by OLV-071.
+**Last updated:** 2026-05-12 by OLV-073.

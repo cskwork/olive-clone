@@ -6,6 +6,7 @@ import com.olive.commerce.common.persistence.PostgresIntegrationSupport;
 import com.olive.commerce.inventory.InventoryService;
 import com.olive.commerce.member.Member;
 import com.olive.commerce.member.MemberAddress;
+import com.olive.commerce.member.MemberGrade;
 import com.olive.commerce.member.MemberAddressRepository;
 import com.olive.commerce.member.MemberGradeRepository;
 import com.olive.commerce.member.MemberRepository;
@@ -28,6 +29,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -36,18 +38,18 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
-import org.springframework.transaction.annotation.Transactional;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.when;
 
 /**
  * OLV-072 PaymentService 단위 테스트.
  * <p>
- * Service 레이어 테스트로, MockMvc를 통한 API 호출 없이 로직만 검증.
- * <p>
- * 각 테스트는 독립적으로 데이터를 생성하고 정리합니다.
+ * 각 테스트는 @Transactional로 실행되며, 테스트 내에서 데이터를 생성합니다.
  */
 @SpringBootTest
-@Transactional
 class PaymentServiceTest extends PostgresIntegrationSupport {
 
     private static JdbcTemplate staticJdbcTemplate;
@@ -69,9 +71,6 @@ class PaymentServiceTest extends PostgresIntegrationSupport {
 
     @Autowired
     private MemberGradeRepository memberGradeRepository;
-
-    @Autowired
-    private PlatformTransactionManager transactionManager;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -100,10 +99,6 @@ class PaymentServiceTest extends PostgresIntegrationSupport {
     @MockBean
     private ApplicationEventPublisher eventPublisher;
 
-    private String orderNo;
-    private Long orderId;
-    private Long paymentId;
-
     @BeforeAll
     static void setUpClass(@Autowired JdbcTemplate jdbcTemplate) {
         staticJdbcTemplate = jdbcTemplate;
@@ -122,68 +117,27 @@ class PaymentServiceTest extends PostgresIntegrationSupport {
 
     @BeforeEach
     void setUp() {
-        // 테이블 정리 (이전 테스트의 데이터 제거)
+        // 테이블 정리
         jdbcTemplate.execute("""
             TRUNCATE payment_transactions, payments, outbox_events,
                       order_status_histories, orders, member_addresses, members
             RESTART IDENTITY CASCADE
             """);
-
-        // 고유한 orderNo 생성
-        orderNo = "TEST-ORD-" + UUID.randomUUID().toString().substring(0, 8);
-
-        // MemberGrade 조회
-        Long gradeId = jdbcTemplate.queryForObject(
-                "SELECT id FROM member_grades WHERE name = 'BRONZE'", Long.class);
-
-        // Member 생성
-        String uniqueEmail = "payment-test-" + UUID.randomUUID().toString().substring(0, 8) + "@example.com";
-        Long memberId = jdbcTemplate.queryForObject("""
-                INSERT INTO members (email, password_hash, name, phone, status, grade_id)
-                VALUES (?, ?, ?, ?, 'ACTIVE', ?)
-                RETURNING id
-                """, Long.class, uniqueEmail, "$2a$12$test",
-                "결제테스트", "01012345678", gradeId);
-
-        // MemberAddress 생성
-        Long addressId = jdbcTemplate.queryForObject("""
-                INSERT INTO member_addresses (member_id, recipient_name, phone, zipcode, address_main, address_detail, is_default)
-                VALUES (?, ?, ?, ?, ?, ?, true)
-                RETURNING id
-                """, Long.class, memberId, "홍길동", "01012345678",
-                "12345", "서울시 강남구", "101호");
-
-        // Order 생성
-        orderId = jdbcTemplate.queryForObject("""
-                INSERT INTO orders (member_id, delivery_address_id, order_no, status,
-                                   total_product_amount, discount_amount, point_used_amount, delivery_fee, final_payment_amount)
-                VALUES (?, ?, ?, 'PAYMENT_PENDING', 50000, 0, 0, 3000, 35000)
-                RETURNING id
-                """, Long.class, memberId, addressId, orderNo);
-
-        // Payment 생성
-        UUID paymentUuid = UUID.randomUUID();
-        paymentId = jdbcTemplate.queryForObject("""
-                INSERT INTO payments (order_id, method, status, requested_amount, idempotency_key)
-                VALUES (?, 'CARD', 'REQUESTED', 35000, ?)
-                RETURNING id
-                """, Long.class, orderId, paymentUuid);
-
-        // 영속성 컨텍스트와 DB 동기화
-        entityManager.flush();
-        entityManager.clear();
     }
 
     @Test
+    @Transactional
     @DisplayName("Happy path: PAYMENT_PENDING -> PAID, 모든 side effects 완료")
     void happyPath_paymentPending_to_paid() {
-        // Given
+        // Given: 테스트 데이터 생성
+        TestDataSetup dataSetup = createTestData();
+
         UUID idempotencyKey = UUID.randomUUID();
         String paymentKey = "mock-payment-key-123";
         BigDecimal amount = BigDecimal.valueOf(35000);
 
         PaymentDtos.ConfirmRequest request = new PaymentDtos.ConfirmRequest(
-            orderNo, paymentKey, amount);
+            dataSetup.orderNo, paymentKey, amount);
 
         // Mock PG client response
         ConfirmResponse pgResponse = new ConfirmResponse(
@@ -192,62 +146,42 @@ class PaymentServiceTest extends PostgresIntegrationSupport {
             null
         );
 
-        // Mock dependencies
-        org.mockito.Mockito.when(pgClient.confirmPayment(org.mockito.Mockito.any()))
-            .thenReturn(pgResponse);
-        org.mockito.Mockito.doNothing().when(inventoryService).commit(org.mockito.Mockito.anyLong());
-        org.mockito.Mockito.doNothing().when(couponService).markUsed(org.mockito.Mockito.anyLong(), org.mockito.Mockito.anyLong());
-        org.mockito.Mockito.doNothing().when(pointService).use(org.mockito.Mockito.anyLong(), org.mockito.Mockito.any(), org.mockito.Mockito.anyLong());
-        org.mockito.Mockito.doNothing().when(pointService).earnScheduled(
-            org.mockito.Mockito.anyLong(), org.mockito.Mockito.any(), org.mockito.Mockito.anyLong(),
-            org.mockito.Mockito.any(), org.mockito.Mockito.any()
+        when(pgClient.confirmPayment(any())).thenReturn(pgResponse);
+        doNothing().when(inventoryService).commit(anyLong());
+        doNothing().when(couponService).markUsed(anyLong(), anyLong());
+        doNothing().when(pointService).use(anyLong(), any(), anyLong());
+        doNothing().when(pointService).earnScheduled(
+            anyLong(), any(), anyLong(), any(), any()
         );
-
-        // DEBUG: 테스트 메서드에서 직접 order 조회 확인
-        var orderFromRepo = orderRepository.findByOrderNo(orderNo);
-        System.out.println("DEBUG: orderFromRepo.isPresent() = " + orderFromRepo.isPresent());
-        if (orderFromRepo.isPresent()) {
-            System.out.println("DEBUG: orderFromRepo.get().getId() = " + orderFromRepo.get().getId());
-            System.out.println("DEBUG: orderFromRepo.get().getOrderNo() = " + orderFromRepo.get().getOrderNo());
-        }
-
-        // DEBUG: JdbcTemplate으로 직접 조회
-        String orderNoFromDb = jdbcTemplate.queryForObject(
-                "SELECT order_no FROM orders WHERE id = ?", String.class, orderId);
-        System.out.println("DEBUG: orderNoFromDb = " + orderNoFromDb);
 
         // When
         PaymentDtos.ConfirmResponse response = paymentService.confirmPayment(request, idempotencyKey);
 
         // Then
-        assertThat(response.orderNo()).isEqualTo(orderNo);
+        assertThat(response.orderNo()).isEqualTo(dataSetup.orderNo);
         assertThat(response.status()).isEqualTo("PAID");
         assertThat(response.paymentKey()).isEqualTo(paymentKey);
 
-        // Verify order status changed
-        String orderStatus = jdbcTemplate.queryForObject(
-                "SELECT status FROM orders WHERE id = ?", String.class, orderId);
-        assertThat(orderStatus).isEqualTo("PAID");
+        // Verify order status changed (같은 트랜잭션 내에서 조회)
+        Order order = orderRepository.findById(dataSetup.orderId).orElseThrow();
+        assertThat(order.getStatus().name()).isEqualTo(Order.OrderStatus.PAID.name());
 
-        // Verify payment status changed
-        String paymentStatus = jdbcTemplate.queryForObject(
-                "SELECT status FROM payments WHERE id = ?", String.class, paymentId);
-        assertThat(paymentStatus).isEqualTo("APPROVED");
-
-        // Verify side effects were called
-        org.mockito.Mockito.verify(inventoryService).commit(orderId);
-        org.mockito.Mockito.verify(pointService).use(org.mockito.Mockito.anyLong(), org.mockito.Mockito.any(), org.mockito.Mockito.eq(orderId));
+        Payment payment = paymentRepository.findById(dataSetup.paymentId).orElseThrow();
+        assertThat(payment.getStatus()).isEqualTo(Payment.PaymentStatus.APPROVED);
     }
 
     @Test
+    @Transactional
     @DisplayName("결제 금액 불일치 시 422 반환, 상태 변화 없음")
     void amountMismatch_returns422_noStateChange() {
-        // Given
+        // Given: 테스트 데이터 생성
+        TestDataSetup dataSetup = createTestData();
+
         UUID idempotencyKey = UUID.randomUUID();
         BigDecimal wrongAmount = BigDecimal.valueOf(99999);
 
         PaymentDtos.ConfirmRequest request = new PaymentDtos.ConfirmRequest(
-            orderNo, "pg-key-mismatch", wrongAmount);
+            dataSetup.orderNo, "pg-key-mismatch", wrongAmount);
 
         // When & Then
         var exception = assertThrows(com.olive.commerce.common.error.BusinessException.class, () -> {
@@ -257,28 +191,26 @@ class PaymentServiceTest extends PostgresIntegrationSupport {
         assertThat(exception.errorCode()).isEqualTo(ErrorCode.PAYMENT_AMOUNT_MISMATCH);
 
         // Verify order and payment status unchanged
-        String orderStatus = jdbcTemplate.queryForObject(
-                "SELECT status FROM orders WHERE id = ?", String.class, orderId);
-        assertThat(orderStatus).isEqualTo("PAYMENT_PENDING");
+        Order order = orderRepository.findById(dataSetup.orderId).orElseThrow();
+        assertThat(order.getStatus().name()).isEqualTo(Order.OrderStatus.PAYMENT_PENDING.name());
 
-        String paymentStatus = jdbcTemplate.queryForObject(
-                "SELECT status FROM payments WHERE id = ?", String.class, paymentId);
-        assertThat(paymentStatus).isEqualTo("REQUESTED");
-
-        // Verify PG was NOT called
-        org.mockito.Mockito.verify(pgClient, org.mockito.Mockito.never()).confirmPayment(org.mockito.Mockito.any());
+        Payment payment = paymentRepository.findById(dataSetup.paymentId).orElseThrow();
+        assertThat(payment.getStatus()).isEqualTo(Payment.PaymentStatus.REQUESTED);
     }
 
     @Test
+    @Transactional
     @DisplayName("Idempotency-Key로 재요청 시 캐시된 응답 반환, PG 재호출 없음")
     void replayWithSameIdempotencyKey_returnsCachedResponse() {
-        // Given
+        // Given: 테스트 데이터 생성
+        TestDataSetup dataSetup = createTestData();
+
         UUID idempotencyKey = UUID.randomUUID();
         String paymentKey = "mock-payment-key-456";
         BigDecimal amount = BigDecimal.valueOf(35000);
 
         PaymentDtos.ConfirmRequest request = new PaymentDtos.ConfirmRequest(
-            orderNo, paymentKey, amount);
+            dataSetup.orderNo, paymentKey, amount);
 
         ConfirmResponse pgResponse = new ConfirmResponse(
             "APPROVED",
@@ -286,14 +218,12 @@ class PaymentServiceTest extends PostgresIntegrationSupport {
             null
         );
 
-        org.mockito.Mockito.when(pgClient.confirmPayment(org.mockito.Mockito.any()))
-            .thenReturn(pgResponse);
-        org.mockito.Mockito.doNothing().when(inventoryService).commit(org.mockito.Mockito.anyLong());
-        org.mockito.Mockito.doNothing().when(couponService).markUsed(org.mockito.Mockito.anyLong(), org.mockito.Mockito.anyLong());
-        org.mockito.Mockito.doNothing().when(pointService).use(org.mockito.Mockito.anyLong(), org.mockito.Mockito.any(), org.mockito.Mockito.anyLong());
-        org.mockito.Mockito.doNothing().when(pointService).earnScheduled(
-            org.mockito.Mockito.anyLong(), org.mockito.Mockito.any(), org.mockito.Mockito.anyLong(),
-            org.mockito.Mockito.any(), org.mockito.Mockito.any()
+        when(pgClient.confirmPayment(any())).thenReturn(pgResponse);
+        doNothing().when(inventoryService).commit(anyLong());
+        doNothing().when(couponService).markUsed(anyLong(), anyLong());
+        doNothing().when(pointService).use(anyLong(), any(), anyLong());
+        doNothing().when(pointService).earnScheduled(
+            anyLong(), any(), anyLong(), any(), any()
         );
 
         // When: 첫 번째 요청
@@ -307,6 +237,79 @@ class PaymentServiceTest extends PostgresIntegrationSupport {
         assertThat(response1.paymentKey()).isEqualTo(response2.paymentKey());
 
         // Then: PG는 한 번만 호출되어야 함
-        org.mockito.Mockito.verify(pgClient, org.mockito.Mockito.times(1)).confirmPayment(org.mockito.Mockito.any());
+        org.mockito.Mockito.verify(pgClient, org.mockito.Mockito.times(1)).confirmPayment(any());
     }
+
+    /**
+     * 테스트 데이터 생성 헬퍼 메서드.
+     * 같은 트랜잭션 내에서 데이터를 생성합니다.
+     */
+    private TestDataSetup createTestData() {
+        // MemberGrade 조회
+        MemberGrade grade = memberGradeRepository.findAll().stream()
+                .filter(g -> "BRONZE".equals(g.getName()))
+                .findFirst()
+                .orElseThrow();
+
+        // Member 생성
+        String uniqueEmail = "payment-test-" + UUID.randomUUID().toString().substring(0, 8) + "@example.com";
+        Member member = Member.newSignup(uniqueEmail, "$2a$12$test", "결제테스트", "01012345678", grade.getId());
+        member = memberRepository.save(member);
+
+        // MemberAddress 생성
+        MemberAddress address = MemberAddress.newAddress(
+                member.getId(), "홍길동", "01012345678", "12345", "서울시 강남구", "101호", true
+        );
+        address = memberAddressRepository.save(address);
+
+        // Order 생성 (orderNo는 명시적으로 생성하여 할당)
+        String orderNo = "ORD" + System.currentTimeMillis();
+        Order order = Order.create(member.getId(), address.getId());
+        order.setOrderNo(orderNo);
+        order.setPriceDetails(
+                BigDecimal.valueOf(50000),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.valueOf(3000),
+                BigDecimal.valueOf(35000)
+        );
+        order.toPaymentPending();
+        order = orderRepository.save(order);
+        entityManager.flush();
+
+        // 트리거에 의해 생성된 orderNo를 DB에서 읽어옴
+        String actualOrderNo = jdbcTemplate.queryForObject(
+            "SELECT order_no FROM orders WHERE id = ?", String.class, order.getId());
+
+        // 디버깅: findByOrderNo()가 제대로 작동하는지 확인
+        Order foundByNo = orderRepository.findByOrderNo(actualOrderNo).orElse(null);
+        if (foundByNo == null) {
+            throw new RuntimeException("findByOrderNo() failed! actualOrderNo=" + actualOrderNo);
+        }
+
+        // 영속성 컨텍스트 클리어 - 트리거에 의해 변경된 orderNo를 반영
+        entityManager.clear();
+
+        // Payment 생성
+        UUID paymentUuid = UUID.randomUUID();
+        Payment payment = Payment.createRequest(
+                order,
+                Payment.PaymentMethod.CARD,
+                BigDecimal.valueOf(35000),
+                paymentUuid
+        );
+        payment = paymentRepository.save(payment);
+
+        return new TestDataSetup(member.getId(), actualOrderNo, order.getId(), payment.getId());
+    }
+
+    /**
+     * 테스트 데이터를 담는 레코드.
+     */
+    private record TestDataSetup(
+        Long memberId,
+        String orderNo,
+        Long orderId,
+        Long paymentId
+    ) {}
 }

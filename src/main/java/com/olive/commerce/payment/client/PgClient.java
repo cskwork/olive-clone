@@ -35,4 +35,10 @@ public interface PgClient {
      * PG callback이 도착하지 않은 결제를 검증한다.
      */
     VerifyResponse verify(String paymentKey);
+
+    /**
+     * PG 웹훅 raw body 서명 검증.
+     * 실제 PG 구현은 각 PG의 서명 알고리즘을 캡슐화한다.
+     */
+    boolean verifyWebhookSignature(String rawPayload, String signature);
 }

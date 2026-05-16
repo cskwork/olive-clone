@@ -1,6 +1,7 @@
 package com.olive.commerce.payment;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.olive.commerce.common.audit.AuditLogger;
 import com.olive.commerce.common.error.BusinessException;
 import com.olive.commerce.common.error.ErrorCode;
@@ -20,16 +21,20 @@ import com.olive.commerce.promotion.PointService;
 import com.olive.commerce.search.OutboxEvent;
 import com.olive.commerce.search.OutboxEventRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
 
@@ -39,12 +44,14 @@ import java.util.UUID;
  * 8단계 결제 확인 파이프라인 구현 (PRD §8.4).
  */
 @Service
-@Slf4j
 @RequiredArgsConstructor
 public class PaymentService {
 
+    private static final Logger log = LoggerFactory.getLogger(PaymentService.class);
+
     private final PaymentRepository paymentRepository;
     private final PaymentTransactionRepository transactionRepository;
+    private final RefundRepository refundRepository;
     private final OrderRepository orderRepository;
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
     private final OutboxEventRepository outboxEventRepository;
@@ -57,9 +64,7 @@ public class PaymentService {
     private final AuditLogger auditLogger;
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
-
-    private static final OffsetDateTime POINTS_AVAILABLE_DEFAULT = OffsetDateTime.now(ZoneOffset.UTC).plusDays(14);
-    private static final OffsetDateTime POINTS_EXPIRES_DEFAULT = OffsetDateTime.now(ZoneOffset.UTC).plusYears(1);
+    private final StringRedisTemplate redisTemplate;
 
     /**
      * 결제 확인 (PRD §8.4 8단계 파이프라인).
@@ -228,35 +233,18 @@ public class PaymentService {
             throw e;
         }
 
-        // Step 6: 쿠폰 사용 처리
-        if (order.getUsedMemberCouponId() != null) {
-            try {
-                couponService.markUsed(order.getUsedMemberCouponId(), order.getId());
-            } catch (Exception e) {
-                log.error("Failed to mark coupon used for order {}: {}", order.getId(), e.getMessage());
-                throw e;
-            }
-        }
+        // Note: 쿠폰 사용과 포인트 사용은 OrderService.createOrder에서 이미 처리됨
+        // PaymentService에서는 재고 커밋과 상태 변경만 수행
 
-        // Step 7: 포인트 사용 처리
-        if (order.getPointUsedAmount().compareTo(BigDecimal.ZERO) > 0) {
-            try {
-                pointService.use(order.getMemberId(), order.getPointUsedAmount(), order.getId());
-            } catch (Exception e) {
-                log.error("Failed to use points for order {}: {}", order.getId(), e.getMessage());
-                throw e;
-            }
-        }
-
-        // Step 7-1: 포인트 적립 예약
+        // Step 6: 포인트 적립 예약
         // 배송 완료 기준이지만 일단 +14d로 스케줄 (OLV-081에서 이벤트로 갱신)
         try {
             pointService.earnScheduled(
                     order.getMemberId(),
                     calculateEarnedPoints(order.getFinalPaymentAmount()),
                     order.getId(),
-                    POINTS_AVAILABLE_DEFAULT,
-                    POINTS_EXPIRES_DEFAULT
+                    now.plusDays(14),
+                    now.plusYears(1)
             );
         } catch (Exception e) {
             log.error("Failed to schedule earned points for order {}: {}", order.getId(), e.getMessage());
@@ -309,11 +297,15 @@ public class PaymentService {
                                      ConfirmResponse pgResponse, int httpStatus,
                                      UUID idempotencyKey) {
         try {
-            String responseJson = objectMapper.writeValueAsString(Map.of(
-                    "status", pgResponse.status(),
-                    "approvedAt", pgResponse.approvedAt(),
-                    "failedReason", pgResponse.failedReason()
-            ));
+            ObjectNode response = objectMapper.createObjectNode();
+            response.put("status", pgResponse.status());
+            if (pgResponse.approvedAt() != null) {
+                response.put("approvedAt", pgResponse.approvedAt().toString());
+            }
+            if (pgResponse.failedReason() != null) {
+                response.put("failedReason", pgResponse.failedReason());
+            }
+            String responseJson = objectMapper.writeValueAsString(response);
             PaymentTransaction transaction = PaymentTransaction.clientRequest(
                     payment, kind, responseJson, httpStatus, idempotencyKey
             );
@@ -328,7 +320,7 @@ public class PaymentService {
      */
     private BigDecimal calculateEarnedPoints(BigDecimal amount) {
         return amount.multiply(BigDecimal.valueOf(0.01))
-                .setScale(0, BigDecimal.ROUND_HALF_UP);
+                .setScale(0, RoundingMode.HALF_UP);
     }
 
     /**
@@ -352,5 +344,200 @@ public class PaymentService {
     public void onPaymentApproved(PaymentApprovedEvent event) {
         log.info("Payment approved event published: orderId={}, orderNo={}, paymentId={}",
                 event.orderId(), event.orderNo(), event.paymentId());
+    }
+
+    /**
+     * PG 웹훅 처리 (OLV-073).
+     * <p>
+     * PG사가 비동기로 결제 상태 변경을 푸시하는 엔드포인트.
+     *
+     * @param request   웹훅 요청
+     * @param signature 웹훅 서명 (HMAC-SHA256)
+     * @return 웹훅 처리 응답 (항상 200)
+     */
+    @Transactional
+    public PaymentDtos.WebhookResponse handleWebhook(PaymentDtos.WebhookRequest request,
+                                                     String signature,
+                                                     String rawPayload) {
+        // Step 1: raw body 서명 검증. 실패 요청이 dedup key를 오염시키지 않도록 가장 먼저 한다.
+        if (!pgClient.verifyWebhookSignature(rawPayload, signature)) {
+            log.warn("Invalid webhook signature for paymentKey={}", request.paymentKey());
+            throw new BusinessException(ErrorCode.PG_WEBHOOK_INVALID,
+                    "Invalid webhook signature");
+        }
+
+        // Step 2: 결제 조회
+        Payment payment = paymentRepository.findByPaymentKey(request.paymentKey())
+                .orElseThrow(() -> new BusinessException(ErrorCode.PAYMENT_NOT_FOUND,
+                        "Payment not found for paymentKey: " + request.paymentKey()));
+
+        String dedupKey = "webhook:dedup:" + request.paymentKey() + ":" + request.status();
+        Boolean dedupResult = redisTemplate.opsForValue().setIfAbsent(dedupKey, "1", Duration.ofMinutes(5));
+        if (Boolean.FALSE.equals(dedupResult)) {
+            log.info("Duplicate webhook received: paymentKey={}, status={}",
+                    request.paymentKey(), request.status());
+            return new PaymentDtos.WebhookResponse(false, "Duplicate webhook (already processed)");
+        }
+
+        // Step 3: 유효한 웹훅은 트랜잭션 기록 (사후 분석용)
+        recordWebhookTransaction(payment, request, signature);
+
+        // Step 4: 상태별 처리
+        switch (request.status()) {
+            case "APPROVED" -> handleApprovedWebhook(payment, request);
+            case "FAILED", "CANCELED" -> handleFailedWebhook(payment, request);
+            case "REFUNDED" -> handleRefundedWebhook(payment, request);
+            default -> log.warn("Unknown webhook status: {}", request.status());
+        }
+
+        return new PaymentDtos.WebhookResponse(true, "Webhook processed successfully");
+    }
+
+    /**
+     * 웹훅 트랜잭션 기록.
+     */
+    private void recordWebhookTransaction(Payment payment, PaymentDtos.WebhookRequest request,
+                                          String signature) {
+        try {
+            ObjectNode response = objectMapper.createObjectNode();
+            response.put("paymentKey", request.paymentKey());
+            response.put("status", request.status());
+            if (request.approvedAt() != null) {
+                response.put("approvedAt", request.approvedAt().toString());
+            }
+            if (request.approvedAmount() != null) {
+                response.set("approvedAmount", objectMapper.valueToTree(request.approvedAmount()));
+            }
+            if (request.failedReason() != null) {
+                response.put("failedReason", request.failedReason());
+            }
+            if (signature != null) {
+                response.put("signature", signature);
+            }
+            String responseJson = objectMapper.writeValueAsString(response);
+            PaymentTransaction transaction = PaymentTransaction.webhook(payment, responseJson, 200);
+            transactionRepository.save(transaction);
+        } catch (Exception e) {
+            log.error("Failed to record webhook transaction for payment {}: {}",
+                    payment.getId(), e.getMessage());
+        }
+    }
+
+    /**
+     * APPROVED 웹훅 처리.
+     * <p>
+     * 주문이 PAYMENT_PENDING이면 confirm 로직과 동일하게 처리.
+     * 이미 PAID면 중복 로그만 남기고 no-op.
+     */
+    private void handleApprovedWebhook(Payment payment, PaymentDtos.WebhookRequest request) {
+        Order order = payment.getOrder();
+
+        // 이미 APPROVED 상태면 no-op
+        if (payment.getStatus() == PaymentStatus.APPROVED) {
+            log.info("Payment already approved: paymentKey={}, orderNo={}",
+                    request.paymentKey(), order.getOrderNo());
+            return;
+        }
+
+        // 주문이 PAYMENT_PENDING이 아니면 경고 로그
+        if (order.getStatus() != Order.OrderStatus.PAYMENT_PENDING) {
+            log.warn("Order not in PAYMENT_PENDING when webhook APPROVED received: orderNo={}, status={}",
+                    order.getOrderNo(), order.getStatus());
+        }
+
+        // 결제 승인 처리 (confirm 경로와 동일)
+        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime approvedAt = request.approvedAt() != null
+                ? request.approvedAt().atZone(ZoneOffset.UTC).toOffsetDateTime()
+                : now;
+
+        processSuccessfulPayment(
+                order,
+                payment,
+                new ConfirmResponse("APPROVED", request.approvedAt(), null),
+                request.paymentKey(),
+                null  // idempotencyKey 없음 (PG-originated)
+        );
+
+        log.info("Webhook APPROVED processed: orderNo={}, paymentKey={}",
+                order.getOrderNo(), request.paymentKey());
+    }
+
+    /**
+     * FAILED/CANCELED 웹훅 처리.
+     * <p>
+     * 결제 상태를 FAILED/CANCELED로 변경.
+     * 주문 상태는 PAYMENT_PENDING 유지 (사용자 취소 가능).
+     * 재고 해제는 배치에서 처리 (OLV-120).
+     */
+    private void handleFailedWebhook(Payment payment, PaymentDtos.WebhookRequest request) {
+        Order order = payment.getOrder();
+
+        PaymentStatus newStatus = "CANCELED".equals(request.status())
+                ? PaymentStatus.CANCELED
+                : PaymentStatus.FAILED;
+
+        payment.setStatus(newStatus);
+        payment.setFailedReason(request.failedReason());
+        paymentRepository.save(payment);
+
+        // 주문 상태는 PAYMENT_PENDING 유지 (사용자가 취소 가능)
+        // PG 재시도 윈도우가 지났으면 FAILED로 변경 (배치 정책에 따름)
+        log.info("Webhook {} processed: orderNo={}, paymentKey={}, reason={}",
+                newStatus, order.getOrderNo(), request.paymentKey(),
+                request.failedReason());
+    }
+
+    /**
+     * REFUNDED 웹훅 처리.
+     * <p>
+     * 주문이 REFUND_REQUESTED 상태일 때만 유효.
+     * RefundService.approveRefund()에서 이미 처리된 경우 무시.
+     */
+    private void handleRefundedWebhook(Payment payment, PaymentDtos.WebhookRequest request) {
+        Order order = payment.getOrder();
+
+        // 환불 요청 상태가 아니면 경고
+        if (order.getStatus() != Order.OrderStatus.REFUND_REQUESTED) {
+            log.warn("Webhook REFUNDED received but order not in REFUND_REQUESTED: orderNo={}, status={}",
+                    order.getOrderNo(), order.getStatus());
+            return;
+        }
+
+        // 이미 REFUNDED 상태면 중복 처리 방지
+        if (payment.getStatus() == PaymentStatus.REFUNDED) {
+            log.info("Payment already refunded, skipping webhook: orderNo={}, paymentKey={}",
+                    order.getOrderNo(), request.paymentKey());
+            return;
+        }
+
+        payment.setStatus(PaymentStatus.REFUNDED);
+        paymentRepository.save(payment);
+
+        // 환불 테이블 상태 업데이트 (OLV-074)
+        Refund refund = refundRepository.findByOrderIdAndStatus(
+                order.getId(), Refund.RefundStatus.REQUESTED
+        ).orElse(null);
+        if (refund != null) {
+            refund.approve(request.paymentKey(), OffsetDateTime.now());
+            refundRepository.save(refund);
+        }
+
+        order.setStatus(Order.OrderStatus.REFUNDED.name());
+        orderRepository.save(order);
+
+        // 주문 상태 이력 기록
+        OrderStatusHistory history = OrderStatusHistory.transition(
+                order,
+                Order.OrderStatus.REFUND_REQUESTED.name(),
+                Order.OrderStatus.REFUNDED.name(),
+                OrderStatusHistory.ChangedByKind.SYSTEM,
+                null,
+                "PG 환불 완료 (웹훅)"
+        );
+        orderStatusHistoryRepository.save(history);
+
+        log.info("Webhook REFUNDED processed: orderNo={}, paymentKey={}",
+                order.getOrderNo(), request.paymentKey());
     }
 }

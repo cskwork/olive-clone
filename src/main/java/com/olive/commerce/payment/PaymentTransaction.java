@@ -1,16 +1,18 @@
 package com.olive.commerce.payment;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.Lob;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -25,6 +27,7 @@ import java.util.UUID;
 public class PaymentTransaction {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @OneToOne
@@ -35,7 +38,7 @@ public class PaymentTransaction {
     @Enumerated(EnumType.STRING)
     private TransactionKind kind;
 
-    @Lob
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "pg_response_json", columnDefinition = "jsonb")
     private String pgResponseJson;
 

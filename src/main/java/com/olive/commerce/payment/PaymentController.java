@@ -1,12 +1,14 @@
 package com.olive.commerce.payment;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.olive.commerce.common.api.ApiResponse;
 import com.olive.commerce.common.error.ErrorBody;
 import com.olive.commerce.common.error.ErrorCode;
 import com.olive.commerce.payment.client.exception.PgTimeoutException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,11 +26,13 @@ import java.util.UUID;
  */
 @RestController
 @RequestMapping("/api/payments")
-@Slf4j
 @RequiredArgsConstructor
 public class PaymentController {
 
+    private static final Logger log = LoggerFactory.getLogger(PaymentController.class);
+
     private final PaymentService paymentService;
+    private final ObjectMapper objectMapper;
 
     /**
      * 결제 확인 (PRD §8.4).
@@ -73,5 +77,26 @@ public class PaymentController {
             log.warn("Invalid Idempotency-Key format: {}", headerValue);
             return null;
         }
+    }
+
+    /**
+     * PG 웹훅 수신 (OLV-073).
+     * <p>
+     * PG사가 비동기로 결제 상태 변경을 푸시한다.
+     * 웹훅이 진짜 결제 상태의 소스 of truth (PRD §6.6).
+     *
+     * @param signature 웹훅 서명 (HMAC-SHA256)
+     * @param rawBody   raw 웹훅 요청 body
+     * @return 항상 200 (성공/실패/중복 모두 200)
+     */
+    @PostMapping("/webhook")
+    public ResponseEntity<ApiResponse<PaymentDtos.WebhookResponse>> handleWebhook(
+            @RequestHeader(value = "X-Webhook-Signature", required = false) String signature,
+            @RequestBody String rawBody
+    ) throws Exception {
+        PaymentDtos.WebhookRequest request =
+                objectMapper.readValue(rawBody, PaymentDtos.WebhookRequest.class);
+        PaymentDtos.WebhookResponse response = paymentService.handleWebhook(request, signature, rawBody);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

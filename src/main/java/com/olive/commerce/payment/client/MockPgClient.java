@@ -3,8 +3,13 @@ package com.olive.commerce.payment.client;
 import com.olive.commerce.payment.client.dto.*;
 import com.olive.commerce.payment.client.exception.PgTimeoutException;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import java.math.BigDecimal;
+import java.security.MessageDigest;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.UUID;
 
 /**
@@ -13,6 +18,11 @@ import java.util.UUID;
  * 동작 모드는 {@link #setBehaviour(String)}으로 제어한다.
  */
 public class MockPgClient implements PgClient {
+
+    /**
+     * 웹훅 서명용 공유 시크릿 (실제 환경에서는 설정에서 주입).
+     */
+    private static final String WEBHOOK_SECRET = "mock-webhook-secret-for-testing";
 
     /**
      * 동작 모드.
@@ -24,6 +34,51 @@ public class MockPgClient implements PgClient {
 
     public void setBehaviour(String behaviour) {
         this.behaviour = behaviour;
+    }
+
+    /**
+     * 웹훅 payload에 HMAC-SHA256 서명 생성.
+     * 실제 PG사마다 서명 방식이 다르므로 이는 mock 구현.
+     *
+     * @param payload 웹훅 바디 JSON 문자열
+     * @return Base64 인코딩된 서명
+     */
+    public String signWebhook(String payload) {
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            SecretKeySpec secretKey = new SecretKeySpec(
+                WEBHOOK_SECRET.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+            mac.init(secretKey);
+            byte[] signedBytes = mac.doFinal(payload.getBytes(StandardCharsets.UTF_8));
+            return Base64.getEncoder().encodeToString(signedBytes);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to sign webhook", e);
+        }
+    }
+
+    /**
+     * 웹훅 서명 검증.
+     *
+     * @param payload  웹훅 바디 JSON 문자열
+     * @param signature 검증할 서명
+     * @return 서명이 유효하면 true
+     */
+    public boolean verifyWebhookSignature(String payload, String signature) {
+        if (signature == null || signature.isBlank()) {
+            return false;
+        }
+        String expectedSignature = signWebhook(payload);
+        return MessageDigest.isEqual(
+            expectedSignature.getBytes(StandardCharsets.UTF_8),
+            signature.getBytes(StandardCharsets.UTF_8)
+        );
+    }
+
+    /**
+     * 웹훅용 공유 시크릿 반환 (실제로는 환경변수나 설정에서 주입).
+     */
+    public static String getWebhookSecret() {
+        return WEBHOOK_SECRET;
     }
 
     @Override
