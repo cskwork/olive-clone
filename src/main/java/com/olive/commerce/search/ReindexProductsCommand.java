@@ -9,6 +9,8 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Profile;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -52,15 +54,18 @@ public class ReindexProductsCommand implements ApplicationRunner {
         log.info("Reindex starting: ensuring index exists...");
         indexInitializer.ensureProductsIndex();
 
-        int total = (int) productRepository.count();
+        long total = productRepository.count();
         log.info("Reindex scanning {} products in batches of {}", total, ProductIndexer.BULK_SIZE);
 
         int indexed = 0;
-        long offset = 0;
+        int pageNumber = 0;
         while (true) {
             List<Product> page = productRepository.findAll(
-                org.springframework.data.domain.PageRequest.of(
-                    (int) (offset / ProductIndexer.BULK_SIZE), ProductIndexer.BULK_SIZE)
+                PageRequest.of(
+                    pageNumber,
+                    ProductIndexer.BULK_SIZE,
+                    Sort.by(Sort.Direction.ASC, "id")
+                )
             ).getContent();
             if (page.isEmpty()) break;
 
@@ -68,7 +73,7 @@ public class ReindexProductsCommand implements ApplicationRunner {
             for (Product p : page) ids.add(p.getId());
             productIndexer.indexBulk(ids);
             indexed += ids.size();
-            offset += ids.size();
+            pageNumber++;
             log.info("Reindex progress: {}/{}", indexed, total);
         }
 

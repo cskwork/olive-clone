@@ -96,7 +96,7 @@ class ProductSearchSyncIT extends PostgresIntegrationSupport {
     @Test
     void enqueueAndDrain_reflectsProductInOpenSearch() throws Exception {
         Long productId = tx.execute(s -> {
-            Product seed = productRepository.findAll().get(0); // V3 seed 선크림
+            Product seed = suncreamSeed();
             indexEnqueuer.enqueueProductIndexSync(seed.getId());
             return seed.getId();
         });
@@ -130,7 +130,7 @@ class ProductSearchSyncIT extends PostgresIntegrationSupport {
 
     @Test
     void priceUpdate_propagatesNewSalePriceInsideFiveSeconds() {
-        Long productId = tx.execute(s -> productRepository.findAll().get(0).getId());
+        Long productId = tx.execute(s -> suncreamSeed().getId());
 
         BigDecimal newPrice = new BigDecimal("17777");
         tx.executeWithoutResult(s -> {
@@ -165,7 +165,7 @@ class ProductSearchSyncIT extends PostgresIntegrationSupport {
         // OpenSearchConfig의 socketTimeout=3s가 있어야 짧게 실패한다 — 본 티켓에서 추가.
         OPENSEARCH.getDockerClient().pauseContainerCmd(OPENSEARCH.getContainerId()).exec();
         try {
-            Long productId = tx.execute(s -> productRepository.findAll().get(0).getId());
+            Long productId = tx.execute(s -> suncreamSeed().getId());
             tx.executeWithoutResult(s -> indexEnqueuer.enqueueProductIndexSync(productId));
 
             // 워커를 직접 한 tick 호출 — 예외 catch 후 attempt_count++.
@@ -186,7 +186,7 @@ class ProductSearchSyncIT extends PostgresIntegrationSupport {
         }
 
         // 복구 후 워커 재호출하면 drain 성공 → 같은 product가 OS에 색인.
-        Long productId = tx.execute(s -> productRepository.findAll().get(0).getId());
+        Long productId = tx.execute(s -> suncreamSeed().getId());
         int processed = worker.drainOnce();
         assertThat(processed).isEqualTo(1);
 
@@ -197,5 +197,12 @@ class ProductSearchSyncIT extends PostgresIntegrationSupport {
             ProductDocument.class
         );
         assertThat(recovered.found()).isTrue();
+    }
+
+    private Product suncreamSeed() {
+        return productRepository.findAll().stream()
+            .filter(product -> product.getName().contains("선크림"))
+            .findFirst()
+            .orElseThrow();
     }
 }

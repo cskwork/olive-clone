@@ -71,10 +71,11 @@ class BrandCategoryPublicApiIT extends PostgresIntegrationSupport {
 
     @BeforeEach
     void setUp() {
-        // Reset sequences to sync with Flyway-inserted data (brand id=1, category ids 1-3)
+        // Reset sequences to sync with Flyway-inserted demo data.
         // Note: @Transactional will rollback after each test, but Flyway data persists
         new TransactionTemplate(txManager).executeWithoutResult(s -> {
-            em.createNativeQuery("SELECT setval('brands_id_seq', 1, true)").getSingleResult();
+            em.createNativeQuery("SELECT setval('brands_id_seq', (SELECT MAX(id) FROM brands), true)")
+                .getSingleResult();
             em.createNativeQuery("SELECT setval('categories_id_seq', 3, true)").getSingleResult();
         });
 
@@ -84,7 +85,7 @@ class BrandCategoryPublicApiIT extends PostgresIntegrationSupport {
 
     @Test
     void publicBrands_returnsActiveOnly() throws Exception {
-        // Flyway already inserted '더샘' (ACTIVE) brand
+        // Flyway already inserted active demo brands.
         // Add an INACTIVE brand to verify it's filtered out
         new TransactionTemplate(txManager).executeWithoutResult(s -> {
             em.createNativeQuery("""
@@ -97,7 +98,7 @@ class BrandCategoryPublicApiIT extends PostgresIntegrationSupport {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data").isArray())
-            .andExpect(jsonPath("$.data.length()").value(1)) // Only '더샘' (ACTIVE) from Flyway
+            .andExpect(jsonPath("$.data.length()").value(7))
             .andExpect(jsonPath("$.data[0].slug").value("thesecret"));
     }
 

@@ -61,10 +61,8 @@ class BrandCategoryAdminApiIT extends PostgresIntegrationSupport {
         // Reset Hibernate sequences to sync with Flyway-inserted data
         // Flyway V3__product.sql inserts brand id=1 and category ids 1-3
         new TransactionTemplate(txManager).executeWithoutResult(s -> {
-            // Restart sequences after the max ID inserted
-            // brand id=1 exists, so next should be 2
-            // category ids 1-3 exist from Flyway, plus we insert 4-6 below, so next should be 7
-            em.createNativeQuery("SELECT setval('brands_id_seq', 1, true)").getSingleResult();
+            em.createNativeQuery("SELECT setval('brands_id_seq', (SELECT MAX(id) FROM brands), true)")
+                .getSingleResult();
             em.createNativeQuery("SELECT setval('categories_id_seq', 6, true)").getSingleResult();
             // Insert additional test categories (4-6 as children)
             em.createNativeQuery("""
@@ -209,7 +207,7 @@ class BrandCategoryAdminApiIT extends PostgresIntegrationSupport {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.meta.page").value(0))
             .andExpect(jsonPath("$.meta.size").value(10))
-            .andExpect(jsonPath("$.meta.total").value(1))
+            .andExpect(jsonPath("$.meta.total").value(7))
             .andReturn();
     }
 
