@@ -4,6 +4,8 @@ import com.olive.commerce.common.audit.AuditLogger;
 import com.olive.commerce.common.error.BusinessException;
 import com.olive.commerce.common.error.ErrorCode;
 import com.olive.commerce.promotion.PointHistory.ChangeType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -24,6 +26,8 @@ import java.util.Map;
  */
 @Service
 public class PointService {
+
+    private static final Logger log = LoggerFactory.getLogger(PointService.class);
 
     private final PointHistoryRepository pointHistoryRepository;
     private final AuditLogger auditLogger;
@@ -82,10 +86,9 @@ public class PointService {
      */
     @Transactional
     public void use(Long memberId, BigDecimal amount, Long orderId) {
-        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-
         // FOR UPDATE로 잠금 획득 (동시성 제어)
         pointHistoryRepository.lockByMemberIdForUpdate(memberId);
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
 
         // 사용 가능 잔액 확인
         BigDecimal spendable = spendableBalance(memberId, now);
@@ -236,5 +239,60 @@ public class PointService {
     @Transactional(readOnly = true)
     public Page<PointHistory> getHistory(Long memberId, Pageable pageable) {
         return pointHistoryRepository.findByMemberIdOrderByCreatedAtDesc(memberId, pageable);
+    }
+
+    /**
+     * 배송 완료 시 예약된 적립 포인트를 즉시 사용 가능하도록 전환합니다.
+     * <p>해당 주문의 미래 사용 가능일(available_at)인 EARN 내역을 찾아
+     * CANCEL로 복구하고 즉시 사용 가능한 새 EARN 내역을 생성합니다.
+     *
+     * @param memberId 회원 ID
+     * @param orderId  주문 ID
+     */
+    @Transactional
+    public void flipScheduledToSpendable(Long memberId, Long orderId) {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+
+        // 미래 사용 가능일인 EARN 내역 조회
+        List<PointHistory> pendingEarns = pointHistoryRepository.findByOrderIdAndChangeTypeAndAvailableAtAfter(
+                orderId, ChangeType.EARN, now
+        );
+
+        if (pendingEarns.isEmpty()) {
+            log.debug("No pending points to flip for order: {}", orderId);
+            return;
+        }
+
+        for (PointHistory earn : pendingEarns) {
+            if (!earn.getMemberId().equals(memberId)) {
+                continue; // 다른 회원의 내역은 건너뜀
+            }
+
+            // 기존 예약 적립 취소
+            String cancelReason = "주문 #" + orderId + " 배송 완료로 즉시 적립 전환 (기존 예약 취소)";
+            PointHistory cancel = PointHistory.cancel(memberId, earn.getAmount(), cancelReason, orderId);
+            pointHistoryRepository.save(cancel);
+
+            // 즉시 사용 가능한 새 적립 생성
+            String newReason = "주문 #" + orderId + " 배송 완료로 즉시 적립";
+            PointHistory newEarn = PointHistory.earn(
+                    memberId,
+                    earn.getAmount(),
+                    newReason,
+                    orderId,
+                    now, // 즉시 사용 가능
+                    earn.getExpiresAt() // 만료일은 그대로
+            );
+            pointHistoryRepository.save(newEarn);
+
+            log.debug("Flipped pending points: orderId={}, memberId={}, amount={}",
+                    orderId, memberId, earn.getAmount());
+        }
+
+        auditLogger.log("POINT_FLIP_TO_SPENDABLE", Map.of(
+                "memberId", memberId,
+                "orderId", orderId,
+                "flippedCount", pendingEarns.size()
+        ));
     }
 }
