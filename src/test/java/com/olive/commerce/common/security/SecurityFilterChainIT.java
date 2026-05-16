@@ -6,6 +6,7 @@ import com.olive.commerce.member.MemberLoginHistoryRepository;
 import com.olive.commerce.member.MemberRefreshTokenRepository;
 import com.olive.commerce.member.MemberRepository;
 import com.olive.commerce.member.MemberRole;
+import com.olive.testsupport.security.SecurityFilterChainTestApp;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -32,7 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 끈다 — Testcontainers 의존을 피해 보안 골격이 docker 가용성과 독립적으로 검증되게 한다.
  * 후속 도메인 티켓 (OLV-011 등) 은 DB 가 필요하므로 PostgresIntegrationSupport 를 사용한다.
  */
-@SpringBootTest
+@SpringBootTest(classes = SecurityFilterChainTestApp.class)
 @AutoConfigureMockMvc
 @EnableAutoConfiguration(exclude = {
     DataSourceAutoConfiguration.class,
@@ -43,6 +44,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @TestPropertySource(properties = {
     "spring.flyway.enabled=false",
     "spring.jpa.repositories.bootstrap-mode=default",
+    "management.endpoint.health.probes.enabled=false",
+    "management.endpoint.health.validate-group-members=false",
+    "management.endpoint.health.group.readiness.include=ping",
+    "management.endpoint.health.group.liveness.include=ping",
     // Redis health indicator 는 본 테스트와 무관하므로 끈다 — 컨테이너가 없어 503 으로 떨어진다.
     "management.health.redis.enabled=false",
     "olive.security.jwt.access-ttl=PT30M",

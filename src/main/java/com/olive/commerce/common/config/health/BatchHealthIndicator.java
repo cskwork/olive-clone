@@ -1,6 +1,7 @@
 package com.olive.commerce.common.config.health;
 
 import javax.sql.DataSource;
+import org.springframework.boot.actuate.autoconfigure.health.ConditionalOnEnabledHealthIndicator;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.boot.actuate.health.Status;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Component;
  * 상태를 반환하여 운영자가 수동 재처리가 필요함을 알린다.</p>
  */
 @Component("batchHealthIndicator")
+@ConditionalOnEnabledHealthIndicator("batch")
 public class BatchHealthIndicator implements HealthIndicator {
 
     private final DataSource dataSource;

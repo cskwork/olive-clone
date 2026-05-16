@@ -7,6 +7,7 @@ import org.redisson.config.Config;
 import org.redisson.config.SingleServerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.data.redis.RedisProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,6 +25,7 @@ import org.springframework.context.annotation.Configuration;
  * 제어 — 도메인 서비스가 분기한다.
  */
 @Configuration
+@ConditionalOnProperty(name = "inventory.lock.redis.enabled", havingValue = "true", matchIfMissing = true)
 public class RedissonConfig {
 
     private static final Logger log = LoggerFactory.getLogger(RedissonConfig.class);

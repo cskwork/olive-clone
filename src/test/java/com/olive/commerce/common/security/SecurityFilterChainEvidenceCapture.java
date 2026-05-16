@@ -7,6 +7,7 @@ import com.olive.commerce.member.MemberLoginHistoryRepository;
 import com.olive.commerce.member.MemberRefreshTokenRepository;
 import com.olive.commerce.member.MemberRepository;
 import com.olive.commerce.member.MemberRole;
+import com.olive.testsupport.security.SecurityFilterChainTestApp;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -41,7 +42,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
  * docs/OLV-005/qa/ac-evidence.txt 로 단일 파일에 떨어뜨린다.
  * 본 테스트는 항상 GREEN — assert 가 없고 응답 본문만 캡처한다.
  */
-@SpringBootTest
+@SpringBootTest(classes = SecurityFilterChainTestApp.class)
 @AutoConfigureMockMvc
 @EnableAutoConfiguration(exclude = {
     DataSourceAutoConfiguration.class,
@@ -52,6 +53,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 @TestPropertySource(properties = {
     "spring.flyway.enabled=false",
     "spring.jpa.repositories.bootstrap-mode=default",
+    "management.endpoint.health.probes.enabled=false",
+    "management.endpoint.health.validate-group-members=false",
+    "management.endpoint.health.group.readiness.include=ping",
+    "management.endpoint.health.group.liveness.include=ping",
     "management.health.redis.enabled=false",
     "olive.security.jwt.access-ttl=PT30M",
     "olive.security.jwt.refresh-ttl=P14D"

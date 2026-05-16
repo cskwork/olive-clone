@@ -1,5 +1,5 @@
 HTTP 400
-X-Request-Id: 67c91d72-4dbe-4316-9b8c-4f3775b33d0d
+X-Request-Id: a2328d6f-a02b-4c0b-af74-9b59da092eef
 Content-Type: application/json
 
-{"success":false,"error":{"code":"VALIDATION_FAILED","message":"요청 본문 검증에 실패했습니다.","path":"/test/echo","traceId":"67c91d72-4dbe-4316-9b8c-4f3775b33d0d","fieldErrors":[{"field":"name","message":"must not be blank","rejectedValue":""}]}}
+{"success":false,"error":{"code":"VALIDATION_FAILED","message":"요청 본문 검증에 실패했습니다.","path":"/test/echo","traceId":"a2328d6f-a02b-4c0b-af74-9b59da092eef","fieldErrors":[{"field":"name","message":"must not be blank","rejectedValue":""}]}}

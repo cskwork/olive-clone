@@ -1,16 +1,22 @@
 spring:
   application:
     name: commerce-backend
-  autoconfigure:
-    exclude:
-      # 부트스트랩 단계에 회원 도메인이 없어 InMemoryUserDetailsManager가 임의
-      # 비밀번호를 로그에 찍는다 — 시크릿 누출 형태이므로 자동설정 자체를 끈다.
-      # OLV-010(회원 도메인)에서 실제 UserDetailsService를 주입하며 해제한다.
-      - org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+  datasource:
+    url: jdbc:postgresql://localhost:5432/commerce
+    username: commerce
+    password: commerce
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
   jpa:
     open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
     properties:
       hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
         jdbc:
           time_zone: UTC
           non_contextual_lobs: true
@@ -18,23 +24,14 @@ spring:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
-
-aws:
-  s3:
-    # endpoint / access-key / secret-key 는 프로필별로 주입한다 (local: LocalStack, prod: 실제 AWS).
-    region: ap-northeast-2
-    bucket: commerce-images-local
-
-olive:
-  security:
-    jwt:
-      issuer: olive-commerce
-      access-ttl: PT30M
-      refresh-ttl: P14D
-      private-key-location: classpath:keys/app.key
-      public-key-location: classpath:keys/app.pub
-  opensearch:
-    uris: http://localhost:9200
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2s
+      connect-timeout: 2s
+      lettuce:
+        shutdown-timeout: 100ms
 
 server:
   port: 8080
@@ -43,7 +40,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
   endpoint:
     health:
       show-details: when-authorized
@@ -56,3 +53,32 @@ management:
         liveness:
           include: livenessState,ping
           show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      sla:
+        http.server.requests: 50ms,100ms,200ms,500ms,1s,2s
+
+aws:
+  s3:
+    endpoint: http://localhost:4566
+    region: ap-northeast-2
+    bucket: commerce-images-local
+    access-key: test
+    secret-key: test
+
+olive:
+  security:
+    jwt:
+      issuer: olive-commerce
+      access-ttl: PT30M
+      refresh-ttl: P14D
+      private-key-location: classpath:keys/app.key
+      public-key-location: classpath:keys/app.pub
+  pg:
+    provider: mock
+  opensearch:
+    uris: http://localhost:9200

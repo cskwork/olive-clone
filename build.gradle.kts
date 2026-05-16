@@ -28,15 +28,18 @@ extra["testcontainersVersion"] = "1.21.4"
 extra["awsSdkVersion"] = "2.28.29"
 extra["opensearchClientVersion"] = "2.13.0"
 extra["redissonVersion"] = "3.37.0"
+extra["shedlockVersion"] = "5.16.0"
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation("io.micrometer:micrometer-registry-prometheus")
 
     implementation("com.nimbusds:nimbus-jose-jwt:9.40")
 
@@ -51,6 +54,10 @@ dependencies {
     implementation("org.opensearch.client:opensearch-java:${property("opensearchClientVersion")}")
 
     implementation("org.redisson:redisson:${property("redissonVersion")}")
+
+    // ShedLock for distributed scheduler locking
+    implementation("net.javacrumbs.shedlock:shedlock-spring:${property("shedlockVersion")}")
+    implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:${property("shedlockVersion")}")
 
     runtimeOnly("org.postgresql:postgresql")
 

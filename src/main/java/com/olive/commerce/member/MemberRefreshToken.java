@@ -6,6 +6,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
 
@@ -20,7 +22,8 @@ public class MemberRefreshToken {
     @Column(name = "member_id", nullable = false)
     private Long memberId;
 
-    @Column(name = "token_hash", nullable = false, unique = true, length = 64)
+    @Column(name = "token_hash", nullable = false, unique = true, length = 64, columnDefinition = "char(64)")
+    @JdbcTypeCode(SqlTypes.CHAR)
     private String tokenHash;
 
     @Column(name = "issued_at", insertable = false, updatable = false)

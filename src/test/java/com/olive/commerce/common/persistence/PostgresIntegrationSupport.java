@@ -3,8 +3,13 @@ package com.olive.commerce.common.persistence;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.TestExecutionListeners;
+import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.utility.DockerImageName;
 
 /**
  * JVM-싱글톤 Postgres 컨테이너.
@@ -19,8 +24,13 @@ import org.testcontainers.containers.PostgreSQLContainer;
  */
 @ActiveProfiles("test")
 @Import(FlywayTestConfig.class)
+@TestExecutionListeners(
+    listeners = FlywayResetTestExecutionListener.class,
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS
+)
 @TestPropertySource(properties = {
-    "spring.jpa.hibernate.ddl-auto=none"
+    "spring.jpa.hibernate.ddl-auto=none",
+    "spring.flyway.clean-disabled=false"
 })
 public abstract class PostgresIntegrationSupport {
 
@@ -31,7 +41,18 @@ public abstract class PostgresIntegrationSupport {
             .withUsername("commerce")
             .withPassword("commerce");
 
+    static final GenericContainer<?> REDIS =
+        new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
+            .withExposedPorts(6379);
+
     static {
         POSTGRES.start();
+        REDIS.start();
+    }
+
+    @DynamicPropertySource
+    static void redisProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.data.redis.host", REDIS::getHost);
+        registry.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));
     }
 }

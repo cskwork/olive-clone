@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.opensearch.client.opensearch.OpenSearchClient;
 import org.opensearch.client.opensearch.core.InfoResponse;
+import org.springframework.boot.actuate.autoconfigure.health.ConditionalOnEnabledHealthIndicator;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.stereotype.Component;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
  * RED면 DEGRADED로 간주해 readiness만 DOWN.</p>
  */
 @Component
+@ConditionalOnEnabledHealthIndicator("openSearch")
 public class OpenSearchHealthIndicator implements HealthIndicator {
 
     private final OpenSearchClient client;

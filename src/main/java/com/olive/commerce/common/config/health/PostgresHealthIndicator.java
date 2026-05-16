@@ -1,6 +1,7 @@
 package com.olive.commerce.common.config.health;
 
 import javax.sql.DataSource;
+import org.springframework.boot.actuate.autoconfigure.health.ConditionalOnEnabledHealthIndicator;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.stereotype.Component;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Component;
  * liveness와 readiness 모두 DOWN.</p>
  */
 @Component
+@ConditionalOnEnabledHealthIndicator("postgres")
 public class PostgresHealthIndicator implements HealthIndicator {
 
     private final DataSource dataSource;

@@ -1,5 +1,11 @@
 spring:
+  main:
+    allow-bean-definition-overriding: true
   # @ServiceConnection in PostgresIntegrationSupport auto-configures datasource
+  datasource:
+    hikari:
+      maximum-pool-size: 3
+      minimum-idle: 0
   jpa:
     open-in-view: false
     hibernate:
@@ -24,9 +30,39 @@ flyway:
   locations: classpath:db/migration
   baseline-on-migrate: true
 
+management:
+  endpoint:
+    health:
+      validate-group-members: false
+      probes:
+        enabled: false
+      group:
+        readiness:
+          include: ping
+        liveness:
+          include: ping
+  health:
+    defaults:
+      enabled: false
+    ping:
+      enabled: true
+    open-search:
+      enabled: false
+    openSearch:
+      enabled: false
+    readiness:
+      enabled: false
+
+inventory:
+  lock:
+    fallback-to-db: true
+    redis:
+      enabled: false
+
 aws:
   s3:
     endpoint: http://localhost:4566
+    region: us-east-1
     access-key: test
     secret-key: test
 
@@ -35,3 +71,10 @@ olive:
     provider: mock
   opensearch:
     uris: http://localhost:9200
+  security:
+    jwt:
+      issuer: olive-commerce-test
+      access-ttl: PT30M
+      refresh-ttl: P14D
+      private-key-location: classpath:keys/app.key
+      public-key-location: classpath:keys/app.pub

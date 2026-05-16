@@ -1,6 +1,7 @@
 package com.olive.commerce.common.config.health;
 
 import org.springframework.boot.actuate.health.Health;
+import org.springframework.boot.actuate.autoconfigure.health.ConditionalOnEnabledHealthIndicator;
 import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.stereotype.Component;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Component;
  * readiness만 DOWN, liveness는 UP 유지.</p>
  */
 @Component
+@ConditionalOnEnabledHealthIndicator("redis")
 public class RedisHealthIndicator implements HealthIndicator {
 
     private final RedisConnectionFactory connectionFactory;

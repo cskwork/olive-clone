@@ -1,6 +1,7 @@
 package com.olive.commerce.common.persistence;
 
 import org.flywaydb.core.Flyway;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -11,15 +12,20 @@ import javax.sql.DataSource;
  *
  * <p>{@link @DataJpaTest}는 기본적으로 Flyway를 실행하지 않습니다.
  * 이 구성을 통해 Testcontainers로 시작한 Postgres DB에 마이그레이션을 수동으로 실행합니다.
+ *
+ * <p>{@code @ConditionalOnMissingBean}으로 인해 Spring Boot가 자동 설정한
+ * Flyway bean이 있으면 이 빈은 생성되지 않습니다 (충돌 방지).
  */
 @Configuration
 public class FlywayTestConfig {
 
     @Bean
+    @ConditionalOnMissingBean(Flyway.class)
     public Flyway flyway(DataSource dataSource) {
         Flyway flyway = Flyway.configure()
                 .dataSource(dataSource)
                 .locations("classpath:db/migration")
+                .cleanDisabled(false)
                 .load();
 
         // 테스트용 DB 마이그레이션 실행
