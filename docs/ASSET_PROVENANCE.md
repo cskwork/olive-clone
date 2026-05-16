@@ -1,0 +1,28 @@
+# Asset Provenance
+
+This repository includes local product images so the demo catalog is useful from
+a fresh clone without external image hosting.
+
+## Product Catalog Images
+
+Images under `src/main/resources/static/images/products/` were generated with
+Codex image generation for this educational demo. They are synthetic catalog
+mockups, resized to 512px PNG files for repository and browser performance.
+
+The prompts used product names, short product descriptions, and broad health and
+beauty catalog styling. The prompts explicitly avoided retailer logos,
+watermarks, barcode details, and real trademark logo replication.
+
+These images are not official product photography and do not imply endorsement,
+partnership, inventory, pricing accuracy, or brand affiliation.
+
+## Screenshot
+
+`docs/assets/screenshots/commerce-catalog-console.png` is a browser screenshot of
+the local Thymeleaf demo UI running against the seeded local catalog.
+
+## Production Replacement
+
+For a real service, replace all demo product names, prices, and images with
+licensed merchant-owned content or assets from an approved commerce media
+pipeline.
