@@ -52,7 +52,7 @@ hooks:
 agent:
   kind: claude          # codex | claude | gemini | pi
   max_concurrent_agents: 1
-  max_turns: 40
+  max_turns: 100
   max_retry_backoff_ms: 300000
   max_concurrent_agents_by_state:
     Todo: 1
