@@ -1,0 +1,68 @@
+.page {
+  padding: var(--space-6) 0 var(--space-12);
+}
+
+.section {
+  padding: 0 var(--space-5);
+}
+
+@media (min-width: 768px) {
+  .section {
+    padding: 0 var(--space-8);
+  }
+}
+
+.sectionTitle {
+  font-size: 20px;
+  font-weight: var(--fw-bold);
+  color: var(--ink-900);
+  margin-bottom: var(--space-6);
+  letter-spacing: -0.02em;
+}
+
+/* Responsive product grid: 2-col mobile / 4 tablet / 5 desktop */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-4);
+}
+
+@media (min-width: 640px) {
+  .grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 768px) {
+  .grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-5);
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+/* Skeleton loader */
+.skeleton {
+  aspect-ratio: 3 / 4;
+  background: linear-gradient(90deg, var(--grey-100) 25%, var(--grey-200) 50%, var(--grey-100) 75%);
+  background-size: 200% 100%;
+  border-radius: var(--radius-md);
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.errorMsg {
+  color: var(--sale-red);
+  font-size: 14px;
+  padding: var(--space-8) 0;
+  text-align: center;
+}

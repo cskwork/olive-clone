@@ -1,7 +1,6 @@
 package com.olive.commerce.payment;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.olive.commerce.common.audit.AuditLogger;
 import com.olive.commerce.common.error.BusinessException;
 import com.olive.commerce.common.error.ErrorCode;
@@ -31,7 +30,6 @@ import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.Duration;
@@ -65,6 +63,7 @@ public class PaymentService {
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
     private final StringRedisTemplate redisTemplate;
+    private final PaymentTransactionRecorder transactionRecorder;
 
     /**
      * 결제 확인 (PRD §8.4 8단계 파이프라인).
@@ -173,7 +172,7 @@ public class PaymentService {
             // PG 실패: payments.status=FAILED, order 유지
             payment.fail(pgResponse.failedReason());
             paymentRepository.save(payment);
-            recordTransaction(payment, TransactionKind.APPROVE, pgResponse, 500, idempotencyKey);
+            transactionRecorder.record(payment, TransactionKind.APPROVE, pgResponse, 500, idempotencyKey);
             log.info("PG returned FAILED for orderNo={}: {}", request.orderNo(), pgResponse.failedReason());
             // 200 반환 (PRD §9.3: 실패도 200으로, 클라이언트가 status 확인)
             return new PaymentDtos.ConfirmResponse(order.getId(), order.getOrderNo(),
@@ -212,7 +211,7 @@ public class PaymentService {
         paymentRepository.save(payment);
 
         // Step 4-3: 트랜잭션 기록
-        recordTransaction(payment, TransactionKind.APPROVE, pgResponse, 200, idempotencyKey);
+        transactionRecorder.record(payment, TransactionKind.APPROVE, pgResponse, 200, idempotencyKey);
 
         // Step 4-4: 주문 상태 이력 기록
         OrderStatusHistory history = OrderStatusHistory.transition(
@@ -291,31 +290,6 @@ public class PaymentService {
     }
 
     /**
-     * PG 트랜잭션 기록.
-     */
-    private void recordTransaction(Payment payment, TransactionKind kind,
-                                     ConfirmResponse pgResponse, int httpStatus,
-                                     UUID idempotencyKey) {
-        try {
-            ObjectNode response = objectMapper.createObjectNode();
-            response.put("status", pgResponse.status());
-            if (pgResponse.approvedAt() != null) {
-                response.put("approvedAt", pgResponse.approvedAt().toString());
-            }
-            if (pgResponse.failedReason() != null) {
-                response.put("failedReason", pgResponse.failedReason());
-            }
-            String responseJson = objectMapper.writeValueAsString(response);
-            PaymentTransaction transaction = PaymentTransaction.clientRequest(
-                    payment, kind, responseJson, httpStatus, idempotencyKey
-            );
-            transactionRepository.save(transaction);
-        } catch (Exception e) {
-            log.error("Failed to record transaction for payment {}: {}", payment.getId(), e.getMessage());
-        }
-    }
-
-    /**
      * 적립 포인트 계산 (간단 구현: 1% 적립).
      */
     private BigDecimal calculateEarnedPoints(BigDecimal amount) {
@@ -380,7 +354,7 @@ public class PaymentService {
         }
 
         // Step 3: 유효한 웹훅은 트랜잭션 기록 (사후 분석용)
-        recordWebhookTransaction(payment, request, signature);
+        transactionRecorder.recordWebhook(payment, request, signature);
 
         // Step 4: 상태별 처리
         switch (request.status()) {
@@ -391,36 +365,6 @@ public class PaymentService {
         }
 
         return new PaymentDtos.WebhookResponse(true, "Webhook processed successfully");
-    }
-
-    /**
-     * 웹훅 트랜잭션 기록.
-     */
-    private void recordWebhookTransaction(Payment payment, PaymentDtos.WebhookRequest request,
-                                          String signature) {
-        try {
-            ObjectNode response = objectMapper.createObjectNode();
-            response.put("paymentKey", request.paymentKey());
-            response.put("status", request.status());
-            if (request.approvedAt() != null) {
-                response.put("approvedAt", request.approvedAt().toString());
-            }
-            if (request.approvedAmount() != null) {
-                response.set("approvedAmount", objectMapper.valueToTree(request.approvedAmount()));
-            }
-            if (request.failedReason() != null) {
-                response.put("failedReason", request.failedReason());
-            }
-            if (signature != null) {
-                response.put("signature", signature);
-            }
-            String responseJson = objectMapper.writeValueAsString(response);
-            PaymentTransaction transaction = PaymentTransaction.webhook(payment, responseJson, 200);
-            transactionRepository.save(transaction);
-        } catch (Exception e) {
-            log.error("Failed to record webhook transaction for payment {}: {}",
-                    payment.getId(), e.getMessage());
-        }
     }
 
     /**

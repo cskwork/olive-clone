@@ -2,6 +2,7 @@ package com.olive.commerce.order;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.olive.commerce.common.audit.AuditLogger;
+import com.olive.commerce.common.config.DomainProperties;
 import com.olive.commerce.common.error.BusinessException;
 import com.olive.commerce.common.error.ErrorCode;
 import com.olive.commerce.inventory.InventoryService;
@@ -31,7 +32,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.OffsetDateTime;
@@ -52,9 +52,6 @@ public class OrderService {
 
     private static final Logger log = LoggerFactory.getLogger(OrderService.class);
 
-    private static final Duration RESERVATION_TTL = Duration.ofMinutes(15);
-    private static final BigDecimal FREE_SHIPPING_THRESHOLD = new BigDecimal("30000");
-    private static final BigDecimal DEFAULT_SHIPPING_FEE = new BigDecimal("3000");
     private static final Duration IDEMPOTENCY_CACHE_TTL = Duration.ofHours(24);
 
     private final OrderRepository orderRepository;
@@ -75,6 +72,8 @@ public class OrderService {
     private final ApplicationEventPublisher eventPublisher;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
+    private final DomainProperties domainProperties;
+    private final OrderPricingCalculator orderPricingCalculator;
 
     /**
      * 주문 생성 (PRD §8.3 8단계 파이프라인).
@@ -102,7 +101,7 @@ public class OrderService {
         List<OrderItemData> itemDataList = validateProductSaleStatus(request.items());
 
         // 주문 생성 후 ID 확보 (재고 예약에 실제 order_id 사용하기 위해)
-        PriceCalculation calculation = calculatePrice(itemDataList, null, request.usePointAmount());
+        PriceCalculation calculation = orderPricingCalculator.calculate(itemDataList, null, request.usePointAmount());
         Order order = createOrderEntity(memberId, request.deliveryAddressId(), calculation, itemDataList);
         orderRepository.save(order);
 
@@ -116,7 +115,7 @@ public class OrderService {
         List<InventoryService.ReserveItem> reserveItems = buildReserveItems(request.items());
 
         try {
-            inventoryService.reserve(orderId, reserveItems, RESERVATION_TTL);
+            inventoryService.reserve(orderId, reserveItems, domainProperties.getReservationTtl());
         } catch (BusinessException e) {
             // Step 3 실패 시 예약이 생성되지 않으므로 주문도 롤백됨 (@Transactional)
             throw e;
@@ -154,7 +153,7 @@ public class OrderService {
         // Step 4: 쿠폰 검증
         ValidatedCoupon validatedCoupon = null;
         if (request.couponId() != null) {
-            BigDecimal subtotal = calculateSubtotal(itemDataList);
+            BigDecimal subtotal = orderPricingCalculator.subtotal(itemDataList);
             validatedCoupon = couponService.validate(memberId, request.couponId(), subtotal);
         }
 
@@ -169,7 +168,7 @@ public class OrderService {
         }
 
         // Step 6: 최종 금액 계산 (쿠폰 적용하여 재계산)
-        PriceCalculation finalCalculation = calculatePrice(itemDataList, validatedCoupon, request.usePointAmount());
+        PriceCalculation finalCalculation = orderPricingCalculator.calculate(itemDataList, validatedCoupon, request.usePointAmount());
 
         // 가격 업데이트
         order.setPriceDetails(
@@ -387,66 +386,6 @@ public class OrderService {
     }
 
     /**
-     * 소계 계산.
-     */
-    private BigDecimal calculateSubtotal(List<OrderItemData> items) {
-        return items.stream()
-                .map(item -> item.unitPrice().multiply(BigDecimal.valueOf(item.quantity())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
-
-    /**
-     * 최종 금액 계산 (Step 6).
-     * <p>
-     * - subtotal = Σ (unit_price × quantity)
-     * - coupon_discount = validatedCoupon.discountAmount()
-     * - point_discount = usePointAmount
-     * - shipping_fee = 3000원 if subtotal < 30000, else 0
-     * - grand_total = max(0, subtotal - coupon - point + shipping)
-     * <p>
-     * 모든 금액은 BigDecimal scale 0, HALF_UP 반올림.
-     */
-    private PriceCalculation calculatePrice(
-            List<OrderItemData> items,
-            ValidatedCoupon validatedCoupon,
-            BigDecimal usePointAmount
-    ) {
-        BigDecimal subtotal = calculateSubtotal(items);
-
-        BigDecimal couponDiscount = BigDecimal.ZERO;
-        if (validatedCoupon != null) {
-            couponDiscount = validatedCoupon.discountAmount();
-        }
-
-        BigDecimal pointDiscount = usePointAmount != null ? usePointAmount : BigDecimal.ZERO;
-
-        BigDecimal shippingFee;
-        if (subtotal.compareTo(FREE_SHIPPING_THRESHOLD) < 0) {
-            shippingFee = DEFAULT_SHIPPING_FEE;
-        } else {
-            shippingFee = BigDecimal.ZERO;
-        }
-
-        BigDecimal grandTotal = subtotal
-                .subtract(couponDiscount)
-                .subtract(pointDiscount)
-                .add(shippingFee);
-        grandTotal = grandTotal.max(BigDecimal.ZERO);
-
-        // Scale 0, HALF_UP 반올림 (원 단위)
-        int scale = 0;
-        RoundingMode rounding = RoundingMode.HALF_UP;
-
-        return new PriceCalculation(
-                subtotal.setScale(scale, rounding),
-                couponDiscount.setScale(scale, rounding),
-                pointDiscount.setScale(scale, rounding),
-                shippingFee.setScale(scale, rounding),
-                grandTotal.setScale(scale, rounding)
-        );
-    }
-
-    /**
      * 주문 엔티티 생성.
      */
     private Order createOrderEntity(
@@ -484,29 +423,6 @@ public class OrderService {
                 null // PG checkout payload: PG사별 구현 필요 시 추가
         );
     }
-
-    /**
-     * 주문 상품 데이터 (내부용).
-     */
-    private record OrderItemData(
-            Long productId,
-            Long productOptionId,
-            int quantity,
-            String productName,
-            String optionName,
-            BigDecimal unitPrice
-    ) {}
-
-    /**
-     * 가격 계산 결과.
-     */
-    private record PriceCalculation(
-            BigDecimal subtotal,
-            BigDecimal couponDiscount,
-            BigDecimal pointDiscount,
-            BigDecimal shippingFee,
-            BigDecimal grandTotal
-    ) {}
 
     /**
      * OrderCreatedEvent 발행 리스너 (트랜잭션 커밋 후).
