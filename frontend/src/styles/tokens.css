@@ -1,0 +1,86 @@
+/*
+ * Olive Young clone design tokens (see docs/OLIVE_CLONE_PLAN_INPUT.md §5).
+ * Hard rule: green = brand / CTA / active state ONLY; red = price / discount ONLY.
+ * Never swap those roles.
+ */
+:root {
+  /* Brand */
+  --brand-green: #9bce26;
+  --brand-green-dark: #7da81e;
+  --brand-green-tint: #f2f8e2;
+
+  /* Ink / grey */
+  --ink-900: #181818;
+  --ink-700: #333333;
+  --grey-500: #767676;
+  --grey-300: #bfbfbf;
+  --grey-200: #e5e5e5;
+  --grey-100: #f4f4f4;
+  --white: #ffffff;
+
+  /* Price (red = price/discount only) */
+  --sale-red: #ff4452;
+  --sale-red-dark: #e5202e;
+
+  /* Functional cues */
+  --delivery-mint: #00c2b3;
+  --coupon-blue: #2c7be5;
+  --rating-star: #ffb400;
+  --rank-up: #ff4452;
+  --rank-down: #2c7be5;
+  --rank-steady: #767676;
+  --overlay-dim: rgba(0, 0, 0, 0.55);
+  --badge-best-bg: #181818;
+  --badge-best-fg: #ffffff;
+
+  /* Typography */
+  --font-sans: 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont,
+    'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+  --fw-extrabold: 800;
+
+  /* Spacing scale (4px base) */
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 8px;
+  --space-4: 12px;
+  --space-5: 16px;
+  --space-6: 20px;
+  --space-7: 24px;
+  --space-8: 32px;
+  --space-9: 40px;
+  --space-10: 48px;
+  --space-12: 64px;
+
+  /* Radius */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 999px;
+
+  /* Layout */
+  --container-max: 1200px;
+  --gnb-height-mobile: 48px;
+  --gnb-height-desktop: 64px;
+  --sticky-bar-height: 56px;
+  --touch-target: 44px;
+
+  /* Elevation */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.12);
+  --shadow-sheet: 0 -4px 24px rgba(0, 0, 0, 0.16);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+
+  --z-header: 100;
+  --z-sticky: 90;
+  --z-overlay: 1000;
+  --z-sheet: 1010;
+}

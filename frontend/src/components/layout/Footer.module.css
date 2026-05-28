@@ -1,0 +1,94 @@
+.footer {
+  background: var(--grey-100);
+  border-top: 1px solid var(--grey-200);
+  padding: var(--space-10) var(--space-5) calc(var(--space-10) + 56px);
+  /* extra bottom padding to clear mobile bottom tab bar */
+}
+
+@media (min-width: 768px) {
+  .footer {
+    padding-bottom: var(--space-10);
+  }
+}
+
+.inner {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+@media (min-width: 768px) {
+  .inner {
+    flex-direction: row;
+    gap: var(--space-12);
+    align-items: flex-start;
+  }
+}
+
+/* Link columns */
+.columns {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-7) var(--space-5);
+  flex: 1;
+}
+
+@media (min-width: 768px) {
+  .columns {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.colTitle {
+  font-size: 12px;
+  font-weight: var(--fw-bold);
+  color: var(--ink-700);
+  margin-bottom: var(--space-1);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.colLink {
+  font-size: 12px;
+  color: var(--grey-500);
+  line-height: 1.5;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.colLink:hover {
+  color: var(--ink-900);
+}
+
+/* Company info */
+.company {
+  flex-shrink: 0;
+  max-width: 320px;
+}
+
+.brand {
+  font-size: 18px;
+  font-weight: var(--fw-extrabold);
+  color: var(--brand-green);
+  letter-spacing: -0.03em;
+  margin-bottom: var(--space-4);
+}
+
+.info {
+  font-size: 11px;
+  color: var(--grey-500);
+  line-height: 1.7;
+}
+
+.copyright {
+  margin-top: var(--space-5);
+  font-size: 11px;
+  color: var(--grey-300);
+}

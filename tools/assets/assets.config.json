@@ -1,0 +1,109 @@
+{
+  "tokens": {
+    "brandGreen": "#9BCE26",
+    "darkGreen": "#7DA81E",
+    "ink": "#181818",
+    "grey": "#767676",
+    "lineGrey": "#E5E5E5",
+    "softGrey": "#F4F4F4",
+    "white": "#FFFFFF",
+    "saleRed": "#FF4452",
+    "fontFamily": "'Pretendard','Noto Sans KR',sans-serif"
+  },
+  "brands": [
+    {
+      "slug": "thesecret",
+      "name": "더샘",
+      "wordmark": "THE SAEM",
+      "source": "src/main/resources/db/migration/V3__product.sql"
+    },
+    {
+      "slug": "roundlab",
+      "name": "라운드랩",
+      "wordmark": "ROUND LAB",
+      "source": "src/main/resources/db/migration/V15__demo_catalog_seed.sql"
+    },
+    {
+      "slug": "drg",
+      "name": "닥터지",
+      "wordmark": "DR.G",
+      "source": "src/main/resources/db/migration/V15__demo_catalog_seed.sql"
+    },
+    {
+      "slug": "clio",
+      "name": "클리오",
+      "wordmark": "CLIO",
+      "source": "src/main/resources/db/migration/V15__demo_catalog_seed.sql"
+    },
+    {
+      "slug": "mediheal",
+      "name": "메디힐",
+      "wordmark": "MEDIHEAL",
+      "source": "src/main/resources/db/migration/V15__demo_catalog_seed.sql"
+    },
+    {
+      "slug": "aromatica",
+      "name": "아로마티카",
+      "wordmark": "AROMATICA",
+      "source": "src/main/resources/db/migration/V15__demo_catalog_seed.sql"
+    },
+    {
+      "slug": "bringgreen",
+      "name": "브링그린",
+      "wordmark": "BRINGGREEN",
+      "source": "src/main/resources/db/migration/V15__demo_catalog_seed.sql"
+    }
+  ],
+  "banners": [
+    {
+      "slug": "spring-new-sale",
+      "title": "봄 신상 세일",
+      "subtitle": "새 계절을 위한 데일리 루틴 특가",
+      "tag": "NEW SEASON"
+    },
+    {
+      "slug": "today-dream-free-delivery",
+      "title": "오늘드림 무료배송",
+      "subtitle": "필요한 뷰티 아이템을 빠르게 받아보세요",
+      "tag": "FAST BEAUTY"
+    },
+    {
+      "slug": "brand-week",
+      "title": "브랜드위크",
+      "subtitle": "인기 브랜드를 모아 만나는 한 주",
+      "tag": "WEEKLY PICK"
+    }
+  ],
+  "categories": [
+    {
+      "slug": "skincare",
+      "label": "스킨케어",
+      "icon": "droplet"
+    },
+    {
+      "slug": "makeup",
+      "label": "메이크업",
+      "icon": "sparkle"
+    },
+    {
+      "slug": "hair-body",
+      "label": "헤어·바디",
+      "icon": "wave"
+    },
+    {
+      "slug": "cleansing",
+      "label": "클렌징",
+      "icon": "bubble"
+    },
+    {
+      "slug": "mask-pack",
+      "label": "마스크팩",
+      "icon": "mask"
+    },
+    {
+      "slug": "health-food",
+      "label": "건강·푸드",
+      "icon": "leaf"
+    }
+  ]
+}
