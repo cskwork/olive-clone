@@ -3,6 +3,10 @@ build/
 out/
 .gradle/
 
+# Storefront SPA — node deps + generated Vite build output (built by Gradle npmBuild)
+frontend/node_modules/
+src/main/resources/static/app/
+
 # Logs
 *.log
 *.bak
