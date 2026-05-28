@@ -2,6 +2,7 @@ package com.olive.commerce.cart;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.olive.commerce.common.config.DomainProperties;
 import com.olive.commerce.common.error.BusinessException;
 import com.olive.commerce.common.error.ErrorCode;
 import com.olive.commerce.inventory.Inventory;
@@ -18,7 +19,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -38,7 +38,6 @@ public class CartService {
     private static final Logger log = LoggerFactory.getLogger(CartService.class);
 
     private static final String ANON_CART_KEY_PREFIX = "cart:anon:";
-    private static final Duration ANON_CART_TTL = Duration.ofDays(30);
 
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
@@ -47,6 +46,7 @@ public class CartService {
     private final InventoryRepository inventoryRepository;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
+    private final DomainProperties domainProperties;
 
     // ========================================================================
     // 회원 장바구니 (Member Cart)
@@ -277,7 +277,7 @@ public class CartService {
         }
 
         // Redis 저장
-        redisTemplate.opsForValue().set(key, serializeAnonymousCartItems(items), ANON_CART_TTL);
+        redisTemplate.opsForValue().set(key, serializeAnonymousCartItems(items), domainProperties.getAnonCartTtl());
 
         return new CartDtos.AddItemResponse(null, newQuantity);
     }
@@ -319,7 +319,7 @@ public class CartService {
         items.remove(existing);
         items.add(new AnonymousCartItem(optionId, quantity));
 
-        redisTemplate.opsForValue().set(key, serializeAnonymousCartItems(items), ANON_CART_TTL);
+        redisTemplate.opsForValue().set(key, serializeAnonymousCartItems(items), domainProperties.getAnonCartTtl());
     }
 
     /**
@@ -342,7 +342,7 @@ public class CartService {
         if (items.isEmpty()) {
             redisTemplate.delete(key);
         } else {
-            redisTemplate.opsForValue().set(key, serializeAnonymousCartItems(items), ANON_CART_TTL);
+            redisTemplate.opsForValue().set(key, serializeAnonymousCartItems(items), domainProperties.getAnonCartTtl());
         }
     }
 
