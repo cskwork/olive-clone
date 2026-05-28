@@ -123,3 +123,44 @@ tasks.register<org.springframework.boot.gradle.tasks.run.BootRun>("reindexProduc
         "--spring.profiles.active=" + (System.getenv("SPRING_PROFILES_ACTIVE") ?: "local,reindex")
     )
 }
+
+// ---------------------------------------------------------------------------
+// Storefront SPA build (frontend/ -> src/main/resources/static/app).
+// Wired only into packaging/run tasks (bootJar, bootRun) so `test` and the
+// `compile*` tasks stay Node-free. `vite build` writes into static/app, which
+// is gitignored and picked up by processResources for a self-contained jar.
+// ---------------------------------------------------------------------------
+val isWindows = System.getProperty("os.name").lowercase().contains("win")
+val npm = if (isWindows) "npm.cmd" else "npm"
+val frontendDir = layout.projectDirectory.dir("frontend")
+val spaOutputDir = layout.projectDirectory.dir("src/main/resources/static/app")
+
+val npmInstall = tasks.register<Exec>("npmInstall") {
+    group = "frontend"
+    description = "Install storefront SPA dependencies (npm ci)."
+    workingDir = frontendDir.asFile
+    inputs.file(frontendDir.file("package.json"))
+    inputs.file(frontendDir.file("package-lock.json"))
+    outputs.dir(frontendDir.dir("node_modules"))
+    commandLine(npm, "ci")
+}
+
+val npmBuild = tasks.register<Exec>("npmBuild") {
+    group = "frontend"
+    description = "Build the storefront SPA into static/app (Vite)."
+    dependsOn(npmInstall)
+    workingDir = frontendDir.asFile
+    inputs.dir(frontendDir.dir("src"))
+    inputs.dir(frontendDir.dir("public"))
+    inputs.file(frontendDir.file("package.json"))
+    inputs.file(frontendDir.file("vite.config.ts"))
+    inputs.file(frontendDir.file("tsconfig.json"))
+    inputs.file(frontendDir.file("index.html"))
+    outputs.dir(spaOutputDir)
+    commandLine(npm, "run", "build")
+}
+
+// SPA must be built before resources are copied into the jar / runtime classpath.
+tasks.named("processResources") { mustRunAfter(npmBuild) }
+tasks.named("bootJar") { dependsOn(npmBuild) }
+tasks.named("bootRun") { dependsOn(npmBuild) }
