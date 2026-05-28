@@ -41,6 +41,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("io.micrometer:micrometer-registry-prometheus")
 
+    // OpenAPI 3 docs + Swagger UI — typed contract for the storefront SPA
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0")
+
     implementation("com.nimbusds:nimbus-jose-jwt:9.40")
 
     implementation("org.flywaydb:flyway-core")
