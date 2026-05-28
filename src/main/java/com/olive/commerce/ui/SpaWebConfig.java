@@ -10,6 +10,7 @@ import org.springframework.web.servlet.resource.PathResourceResolver;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.regex.Pattern;
 
 /**
  * 스토어프론트 SPA(React) 정적 서빙 + 클라이언트 라우팅 폴백.
@@ -21,9 +22,15 @@ import java.time.Duration;
 @Configuration
 public class SpaWebConfig implements WebMvcConfigurer {
 
+    /** A request path ending in a file extension (e.g. favicon.svg) is served as a real file. */
+    private static final Pattern FILE_REQUEST = Pattern.compile(".*\\.[A-Za-z0-9]+$");
+
     @Override
     public void addViewControllers(ViewControllerRegistry registry) {
-        registry.addRedirectViewController("/app", "/app/");
+        // Bare entry paths -> SPA shell. The /app/** resource handler short-circuits an empty
+        // path before resolvers run, so /app and /app/ are forwarded to index.html explicitly.
+        registry.addViewController("/app").setViewName("forward:/app/index.html");
+        registry.addViewController("/app/").setViewName("forward:/app/index.html");
     }
 
     @Override
@@ -47,13 +54,15 @@ public class SpaWebConfig implements WebMvcConfigurer {
             .addResolver(new PathResourceResolver() {
                 @Override
                 protected Resource getResource(String resourcePath, Resource location) throws IOException {
-                    if (resourcePath.isBlank()) {
-                        return location.createRelative("index.html");
+                    // Serve a real file only when the path looks like one (favicon.svg, etc.);
+                    // SPA client routes and "/app/" itself fall back to the index.html shell.
+                    if (resourcePath != null && FILE_REQUEST.matcher(resourcePath).matches()) {
+                        Resource requested = location.createRelative(resourcePath);
+                        if (requested.exists() && requested.isReadable()) {
+                            return requested;
+                        }
                     }
-                    Resource requested = location.createRelative(resourcePath);
-                    return (requested.exists() && requested.isReadable())
-                        ? requested
-                        : location.createRelative("index.html");
+                    return location.createRelative("index.html");
                 }
             });
     }
