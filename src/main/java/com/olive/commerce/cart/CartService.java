@@ -6,11 +6,9 @@ import com.olive.commerce.common.config.DomainProperties;
 import com.olive.commerce.common.error.BusinessException;
 import com.olive.commerce.common.error.ErrorCode;
 import com.olive.commerce.inventory.Inventory;
-import com.olive.commerce.inventory.InventoryRepository;
 import com.olive.commerce.product.Product;
 import com.olive.commerce.product.ProductOption;
 import com.olive.commerce.product.ProductOptionRepository;
-import com.olive.commerce.product.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,12 +39,12 @@ public class CartService {
 
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
-    private final ProductRepository productRepository;
     private final ProductOptionRepository productOptionRepository;
-    private final InventoryRepository inventoryRepository;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
     private final DomainProperties domainProperties;
+    private final CartValidationHelper cartValidationHelper;
+    private final CartMergeService cartMergeService;
 
     // ========================================================================
     // 회원 장바구니 (Member Cart)
@@ -77,20 +75,7 @@ public class CartService {
     @Transactional
     public CartDtos.AddItemResponse addMemberItem(Long memberId, CartDtos.AddItemRequest request) {
         // 옵션 상태 검증
-        ProductOption option = productOptionRepository.findById(request.productOptionId())
-            .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_OPTION_NOT_FOUND,
-                "Product option not found: " + request.productOptionId()));
-
-        if (option.getStatus() == ProductOption.OptionStatus.STOPPED ||
-            option.getStatus() == ProductOption.OptionStatus.HIDDEN) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
-                "Product option is not available for purchase: " + option.getStatus());
-        }
-
-        // 재고 검증
-        Inventory inventory = inventoryRepository.findByProductOptionId(request.productOptionId())
-            .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_OPTION_NOT_FOUND,
-                "Inventory not found for option: " + request.productOptionId()));
+        cartValidationHelper.validateOption(request.productOptionId());
 
         // 기존 아이템 조회
         Cart cart = cartRepository.findByMemberId(memberId)
@@ -109,22 +94,14 @@ public class CartService {
         if (existingItem != null) {
             // 수량 증분
             newTotalQuantity = existingItem.getQuantity() + request.quantity();
-
-            if (!inventory.hasAvailable(newTotalQuantity)) {
-                throw new BusinessException(ErrorCode.INSUFFICIENT_INVENTORY,
-                    "Insufficient inventory. Available: " + inventory.getAvailableQuantity() +
-                    ", Requested: " + newTotalQuantity);
-            }
+            // 재고 검증 (증분 후 합계 기준)
+            cartValidationHelper.validateInventory(request.productOptionId(), newTotalQuantity);
 
             existingItem.increment(request.quantity());
             item = cartItemRepository.save(existingItem);
         } else {
             // 새 아이템
-            if (!inventory.hasAvailable(request.quantity())) {
-                throw new BusinessException(ErrorCode.INSUFFICIENT_INVENTORY,
-                    "Insufficient inventory. Available: " + inventory.getAvailableQuantity() +
-                    ", Requested: " + request.quantity());
-            }
+            cartValidationHelper.validateInventory(request.productOptionId(), request.quantity());
 
             item = CartItem.create(cart, request.productOptionId(), request.quantity());
             item = cartItemRepository.save(item);
@@ -154,15 +131,7 @@ public class CartService {
         }
 
         // 재고 검증
-        Inventory inventory = inventoryRepository.findByProductOptionId(item.getProductOptionId())
-            .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_OPTION_NOT_FOUND,
-                "Inventory not found for option: " + item.getProductOptionId()));
-
-        if (!inventory.hasAvailable(request.quantity())) {
-            throw new BusinessException(ErrorCode.INSUFFICIENT_INVENTORY,
-                "Insufficient inventory. Available: " + inventory.getAvailableQuantity() +
-                ", Requested: " + request.quantity());
-        }
+        cartValidationHelper.validateInventory(item.getProductOptionId(), request.quantity());
 
         item.updateQuantity(request.quantity());
         cartItemRepository.save(item);
@@ -220,26 +189,10 @@ public class CartService {
      */
     public CartDtos.AddItemResponse addAnonymousItem(String sessionId, CartDtos.AddItemRequest request) {
         // 옵션 상태 검증
-        ProductOption option = productOptionRepository.findById(request.productOptionId())
-            .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_OPTION_NOT_FOUND,
-                "Product option not found: " + request.productOptionId()));
-
-        if (option.getStatus() == ProductOption.OptionStatus.STOPPED ||
-            option.getStatus() == ProductOption.OptionStatus.HIDDEN) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
-                "Product option is not available for purchase: " + option.getStatus());
-        }
+        cartValidationHelper.validateOption(request.productOptionId());
 
         // 재고 검증
-        Inventory inventory = inventoryRepository.findByProductOptionId(request.productOptionId())
-            .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_OPTION_NOT_FOUND,
-                "Inventory not found for option: " + request.productOptionId()));
-
-        if (!inventory.hasAvailable(request.quantity())) {
-            throw new BusinessException(ErrorCode.INSUFFICIENT_INVENTORY,
-                "Insufficient inventory. Available: " + inventory.getAvailableQuantity() +
-                ", Requested: " + request.quantity());
-        }
+        cartValidationHelper.validateInventory(request.productOptionId(), request.quantity());
 
         String key = ANON_CART_KEY_PREFIX + sessionId;
         String json = redisTemplate.opsForValue().get(key);
@@ -262,11 +215,8 @@ public class CartService {
             // 수량 증분
             newQuantity = existing.quantity() + request.quantity();
 
-            if (!inventory.hasAvailable(newQuantity)) {
-                throw new BusinessException(ErrorCode.INSUFFICIENT_INVENTORY,
-                    "Insufficient inventory. Available: " + inventory.getAvailableQuantity() +
-                    ", Requested: " + newQuantity);
-            }
+            // 재고 재검증 (증분 후 합계 기준)
+            cartValidationHelper.validateInventory(request.productOptionId(), newQuantity);
 
             items.remove(existing);
             items.add(new AnonymousCartItem(request.productOptionId(), newQuantity));
@@ -299,15 +249,7 @@ public class CartService {
         }
 
         // 재고 검증
-        Inventory inventory = inventoryRepository.findByProductOptionId(optionId)
-            .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_OPTION_NOT_FOUND,
-                "Inventory not found for option: " + optionId));
-
-        if (!inventory.hasAvailable(quantity)) {
-            throw new BusinessException(ErrorCode.INSUFFICIENT_INVENTORY,
-                "Insufficient inventory. Available: " + inventory.getAvailableQuantity() +
-                ", Requested: " + quantity);
-        }
+        cartValidationHelper.validateInventory(optionId, quantity);
 
         List<AnonymousCartItem> items = parseAnonymousCartItems(json);
         AnonymousCartItem existing = items.stream()
@@ -391,60 +333,14 @@ public class CartService {
         Cart memberCart = cartRepository.findByMemberId(memberId)
             .orElseGet(() -> cartRepository.save(Cart.create(memberId)));
 
-        int mergedCount = 0;
-        int totalItemCount = 0;
-
-        for (AnonymousCartItem anonItem : anonItems) {
-            // 옵션 상태 검증
-            ProductOption option = productOptionRepository.findById(anonItem.productOptionId())
-                .orElse(null);
-
-            if (option == null ||
-                option.getStatus() == ProductOption.OptionStatus.STOPPED ||
-                option.getStatus() == ProductOption.OptionStatus.HIDDEN) {
-                // 유효하지 않은 옵션은 건너뜀
-                continue;
-            }
-
-            // 재고 확인
-            Inventory inventory = inventoryRepository.findByProductOptionId(anonItem.productOptionId())
-                .orElse(null);
-
-            if (inventory == null) {
-                continue;
-            }
-
-            // 기존 회원 카트 아이템 확인
-            CartItem existingItem = cartItemRepository
-                .findByCartIdAndProductOptionId(memberCart.getId(), anonItem.productOptionId())
-                .orElse(null);
-
-            int finalQuantity;
-            if (existingItem != null) {
-                // 수량 합산
-                int sumQuantity = existingItem.getQuantity() + anonItem.quantity();
-                finalQuantity = Math.min(sumQuantity, inventory.getAvailableQuantity());
-                existingItem.updateQuantity(finalQuantity);
-                cartItemRepository.save(existingItem);
-            } else {
-                // 새 아이템
-                finalQuantity = Math.min(anonItem.quantity(), inventory.getAvailableQuantity());
-                if (finalQuantity > 0) {
-                    CartItem newItem = CartItem.create(memberCart, anonItem.productOptionId(), finalQuantity);
-                    cartItemRepository.save(newItem);
-                }
-            }
-
-            if (finalQuantity > 0) {
-                mergedCount++;
-            }
-        }
+        // 병합 처리 위임
+        int mergedCount = cartMergeService.mergeItems(memberCart, anonItems);
 
         // 익명 카트 삭제
         redisTemplate.delete(key);
 
         // 최종 아이템 수
-        totalItemCount = cartItemRepository.findByCartId(memberCart.getId()).size();
+        int totalItemCount = cartItemRepository.findByCartId(memberCart.getId()).size();
 
         return new CartDtos.MergeResponse(mergedCount, totalItemCount);
     }
@@ -514,8 +410,7 @@ public class CartService {
         }
 
         // 재고
-        Inventory inventory = inventoryRepository.findByProductOptionId(item.getProductOptionId())
-            .orElse(null);
+        Inventory inventory = cartValidationHelper.findInventory(item.getProductOptionId());
         int availableQuantity = inventory != null ? inventory.getAvailableQuantity() : 0;
 
         // 가격
@@ -564,7 +459,7 @@ public class CartService {
                 }
 
                 Product product = option.getProduct();
-                Inventory inventory = inventoryRepository.findByProductOptionId(item.productOptionId()).orElse(null);
+                Inventory inventory = cartValidationHelper.findInventory(item.productOptionId());
                 int availableQuantity = inventory != null ? inventory.getAvailableQuantity() : 0;
 
                 BigDecimal salePrice = product != null ? product.getSalePrice() : null;
@@ -632,12 +527,4 @@ public class CartService {
             return "[]";
         }
     }
-
-    /**
-     * 익명 장바구니 아이템 (내부용).
-     */
-    private record AnonymousCartItem(
-        Long productOptionId,
-        Integer quantity
-    ) {}
 }
