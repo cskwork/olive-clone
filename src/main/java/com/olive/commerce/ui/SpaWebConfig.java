@@ -2,12 +2,14 @@ package com.olive.commerce.ui;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
+import org.springframework.http.CacheControl;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.resource.PathResourceResolver;
 
 import java.io.IOException;
+import java.time.Duration;
 
 /**
  * 스토어프론트 SPA(React) 정적 서빙 + 클라이언트 라우팅 폴백.
@@ -26,8 +28,21 @@ public class SpaWebConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        // Content-hashed SPA assets (index-<hash>.js/css) — safe to cache immutably.
+        registry.addResourceHandler("/app/assets/**")
+            .addResourceLocations("classpath:/static/app/assets/")
+            .setCacheControl(CacheControl.maxAge(Duration.ofDays(365)).cachePublic().immutable());
+
+        // Demo media (product/brand/banner/category images) — cache for a month.
+        registry.addResourceHandler("/images/**")
+            .addResourceLocations("classpath:/static/images/")
+            .setCacheControl(CacheControl.maxAge(Duration.ofDays(30)).cachePublic());
+
+        // SPA shell + client-side routing fallback. index.html must revalidate so a
+        // new deploy is picked up; the immutable assets above carry the real caching.
         registry.addResourceHandler("/app/**")
             .addResourceLocations("classpath:/static/app/")
+            .setCacheControl(CacheControl.noCache())
             .resourceChain(true)
             .addResolver(new PathResourceResolver() {
                 @Override
