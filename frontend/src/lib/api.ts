@@ -67,6 +67,48 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   return env.data as T
 }
 
+export async function apiPatch<T>(path: string, body?: unknown): Promise<T> {
+  const env = await request<T>(path, { method: 'PATCH', body })
+  return env.data as T
+}
+
+export async function apiDelete<T>(path: string): Promise<T> {
+  const env = await request<T>(path, { method: 'DELETE' })
+  return env.data as T
+}
+
+/** POST with extra headers (e.g. Idempotency-Key). */
+export async function apiPostWithHeaders<T>(
+  path: string,
+  body?: unknown,
+  headers?: Record<string, string>,
+): Promise<T> {
+  const token = getAccessToken()
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...headers,
+    },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
+
+  let envelope: ApiResponse<T> | null = null
+  try {
+    envelope = (await res.json()) as ApiResponse<T>
+  } catch {
+    // non-JSON body
+  }
+
+  if (!res.ok || !envelope?.success) {
+    const err = envelope?.error
+    throw new ApiError(err?.message ?? `요청 실패 (${res.status})`, res.status, err?.code)
+  }
+  return envelope.data as T
+}
+
 // --- Auth token storage (in-memory + localStorage mirror) -------------------
 const ACCESS_TOKEN_KEY = 'olive.accessToken'
 let accessToken: string | null = null

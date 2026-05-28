@@ -90,6 +90,131 @@ export interface SignupResponse {
   memberId: number
 }
 
+// --- Cart (GET /api/cart, POST /api/cart/items, etc.) --------------------------
+
+export interface CartItem {
+  cartItemId: number
+  productOptionId: number
+  optionName: string
+  productName: string
+  salePrice: number
+  onSale: boolean
+  availableQuantity: number | null
+  quantity: number
+  lineSubtotal: number
+  productStatus: string
+}
+
+export interface CartResponse {
+  items: CartItem[]
+  totalItemCount: number
+  totalAmount: number
+}
+
+export interface AddToCartRequest {
+  productOptionId: number
+  quantity: number
+}
+
+export interface AddToCartResponse {
+  cartItemId: number
+  quantity: number
+}
+
+export interface UpdateCartQuantityRequest {
+  quantity: number
+}
+
+// --- Addresses (GET/POST/PATCH /api/me/addresses) ------------------------------
+
+export interface AddressResponse {
+  id: number
+  recipientName: string
+  phone: string
+  zipcode: string
+  addressMain: string
+  addressDetail: string | null
+  isDefault: boolean
+}
+
+export interface CreateAddressRequest {
+  recipientName: string
+  phone: string
+  zipcode: string
+  addressMain: string
+  addressDetail?: string
+  isDefault: boolean
+}
+
+// --- Orders (POST /api/orders) -------------------------------------------------
+
+export interface OrderItemRequest {
+  productOptionId: number
+  quantity: number
+}
+
+export interface CreateOrderRequest {
+  items: OrderItemRequest[]
+  couponId?: number | null
+  usePointAmount?: number | null
+  deliveryAddressId: number
+}
+
+export interface CreateOrderResponse {
+  orderNo: string
+  paymentKey: number
+  amount: number
+  pgCheckoutPayload: { pg: string; payload: unknown } | null
+}
+
+// --- Payment (POST /api/payments/confirm) --------------------------------------
+
+export interface ConfirmPaymentRequest {
+  orderNo: string
+  paymentKey: string
+  amount: number
+}
+
+export interface ConfirmPaymentResponse {
+  orderId: number
+  orderNo: string
+  status: string
+  paymentKey: string
+}
+
+// --- Order detail (GET /api/orders/:orderNo) -----------------------------------
+
+export interface OrderItemResponse {
+  id: number
+  productName: string
+  optionName: string
+  unitPrice: number
+  quantity: number
+  totalAmount: number
+}
+
+export interface OrderDetailDelivery {
+  recipientName: string
+  phone: string
+  zipcode: string
+  addressMain: string
+  addressDetail: string | null
+}
+
+export interface OrderDetail {
+  id: number
+  orderNo: string
+  status: string
+  totalProductAmount: number
+  discountAmount: number
+  pointUsedAmount: number
+  deliveryFee: number
+  finalPaymentAmount: number
+  items: OrderItemResponse[]
+  delivery: OrderDetailDelivery
+  createdAt: string
+}
+
 // -------------------------------------------------------------------------------
 
 export interface ProductDetail {
