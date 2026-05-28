@@ -2,6 +2,7 @@ package com.olive.commerce.order;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.olive.commerce.common.audit.AuditLogger;
+import com.olive.commerce.common.config.DomainProperties;
 import com.olive.commerce.common.error.BusinessException;
 import com.olive.commerce.common.error.ErrorCode;
 import com.olive.commerce.inventory.InventoryService;
@@ -52,9 +53,6 @@ public class OrderService {
 
     private static final Logger log = LoggerFactory.getLogger(OrderService.class);
 
-    private static final Duration RESERVATION_TTL = Duration.ofMinutes(15);
-    private static final BigDecimal FREE_SHIPPING_THRESHOLD = new BigDecimal("30000");
-    private static final BigDecimal DEFAULT_SHIPPING_FEE = new BigDecimal("3000");
     private static final Duration IDEMPOTENCY_CACHE_TTL = Duration.ofHours(24);
 
     private final OrderRepository orderRepository;
@@ -75,6 +73,7 @@ public class OrderService {
     private final ApplicationEventPublisher eventPublisher;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
+    private final DomainProperties domainProperties;
 
     /**
      * 주문 생성 (PRD §8.3 8단계 파이프라인).
@@ -116,7 +115,7 @@ public class OrderService {
         List<InventoryService.ReserveItem> reserveItems = buildReserveItems(request.items());
 
         try {
-            inventoryService.reserve(orderId, reserveItems, RESERVATION_TTL);
+            inventoryService.reserve(orderId, reserveItems, domainProperties.getReservationTtl());
         } catch (BusinessException e) {
             // Step 3 실패 시 예약이 생성되지 않으므로 주문도 롤백됨 (@Transactional)
             throw e;
@@ -421,8 +420,8 @@ public class OrderService {
         BigDecimal pointDiscount = usePointAmount != null ? usePointAmount : BigDecimal.ZERO;
 
         BigDecimal shippingFee;
-        if (subtotal.compareTo(FREE_SHIPPING_THRESHOLD) < 0) {
-            shippingFee = DEFAULT_SHIPPING_FEE;
+        if (subtotal.compareTo(domainProperties.getFreeShippingThreshold()) < 0) {
+            shippingFee = domainProperties.getDefaultShippingFee();
         } else {
             shippingFee = BigDecimal.ZERO;
         }
