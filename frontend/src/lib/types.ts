@@ -66,6 +66,32 @@ export interface CategoryPath {
   categorySlug: string
 }
 
+// --- Auth (POST /api/auth/*) ---------------------------------------------------
+
+export interface LoginRequest {
+  email: string
+  password: string
+}
+
+export interface LoginResponse {
+  accessToken: string
+  refreshToken: string
+  expiresInSec: number
+}
+
+export interface SignupRequest {
+  email: string
+  password: string
+  name: string
+  phone?: string
+}
+
+export interface SignupResponse {
+  memberId: number
+}
+
+// -------------------------------------------------------------------------------
+
 export interface ProductDetail {
   productId: number
   brandName: string | null
