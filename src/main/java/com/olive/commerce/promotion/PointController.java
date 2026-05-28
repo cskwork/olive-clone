@@ -2,13 +2,13 @@ package com.olive.commerce.promotion;
 
 import com.olive.commerce.common.api.ApiResponse;
 import com.olive.commerce.common.api.PageMeta;
+import com.olive.commerce.common.security.AuthenticatedUser;
 import com.olive.commerce.promotion.PointDtos.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -37,10 +37,9 @@ public class PointController {
      */
     @GetMapping
     public ApiResponse<BalanceResponse> getBalance(
-            @AuthenticationPrincipal Object principal
+            @AuthenticationPrincipal AuthenticatedUser principal
     ) {
-        // TODO: 실제 memberId는 JWT claim에서 추출 (현재 임시 구현)
-        Long memberId = extractMemberId(principal);
+        long memberId = principal.memberId();
 
         BigDecimal balance = pointService.spendableBalance(memberId, OffsetDateTime.now());
         List<PointHistory> pending = pointService.getPendingPoints(memberId, 30);
@@ -59,11 +58,11 @@ public class PointController {
      */
     @GetMapping("/history")
     public ApiResponse<List<HistoryResponse>> getHistory(
-            @AuthenticationPrincipal Object principal,
+            @AuthenticationPrincipal AuthenticatedUser principal,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        Long memberId = extractMemberId(principal);
+        long memberId = principal.memberId();
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Page<PointHistory> result = pointService.getHistory(memberId, pageable);
@@ -74,21 +73,5 @@ public class PointController {
 
         PageMeta meta = new PageMeta(page, size, result.getTotalElements());
         return ApiResponse.success(histories, meta);
-    }
-
-    /**
-     * 현재 인증된 사용자의 memberId를 추출합니다.
-     * <p>TODO: OLV-011 JWT 구현 시 {@link com.olive.commerce.common.security.AuthenticatedUser}로 변경.
-     */
-    private Long extractMemberId(Object principal) {
-        if (principal instanceof String) {
-            // 임시: username에서 ID 파싱 (실제로는 JWT claim에서 추출)
-            try {
-                return Long.parseLong((String) principal);
-            } catch (NumberFormatException e) {
-                return 1L; // fallback for testing
-            }
-        }
-        return 1L; // default fallback
     }
 }
