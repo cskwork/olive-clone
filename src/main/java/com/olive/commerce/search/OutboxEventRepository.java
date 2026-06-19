@@ -65,6 +65,21 @@ public interface OutboxEventRepository extends JpaRepository<OutboxEvent, Long> 
     long countByEventTypeAndDlq(String eventType, boolean dlq);
 
     /**
+     * Total count of DLQ'd events across all types (for Prometheus gauge).
+     */
+    long countByDlqTrue();
+
+    /**
+     * All events currently in the DLQ (for admin listing).
+     */
+    @Query("""
+        SELECT o FROM OutboxEvent o
+        WHERE o.dlq = true
+        ORDER BY o.id ASC
+        """)
+    List<OutboxEvent> findAllDlq();
+
+    /**
      * 특정 aggregate의 가장 최근 outbox row (테스트 / 디버그용).
      */
     @Query("""

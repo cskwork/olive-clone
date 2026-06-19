@@ -81,4 +81,12 @@
 - 마이그레이션 버전 중앙배정: V17=order.payment_key(A3), V18=products.sales_count(A5), V19=wishlist_items(C1).
 
 ## Build Log
-(웨이브별 채움)
+
+### M1 — 백엔드 정합성 (DONE, commit 09d561b on feat/real-mall-upgrade)
+- 3 병렬 빌더(catalog-ranking / order-payment / refund-admin) + conductor 적발 후속수정 4건.
+- conductor가 적발·수정한 결함: ① list 쿼리 text-block 공백버그(500) ② findByProductId 빈리스트 회귀 ③ INVENTORY_COMMIT_FAILED 고아이벤트(oversell) ④ 테스트 Instant 바인딩.
+- conductor smoke: `./gradlew test`(JDK21+Docker) 9 클래스 = 69 tests GREEN.
+- 잔여 적대적-검증 대상(최종 Verify에서): 취소 트랜잭션 내 PG호출 후 롤백 시 PG-DB 발산(real PG reconciliation 필요), 전액반품 배송비 환불 정책, refund 누적 라운딩.
+
+### M2 — 보안/운영 하드닝 (IN PROGRESS)
+- 2 병렬 빌더(파일소유 disjoint): M2-A(config+edge security: build.gradle/yml/SecurityConfig/RateLimitFilter/MockPg*), M2-B(error hygiene+DLQ ops: GlobalExceptionHandler/JobAdmin/DeliveryAdmin/Outbox requeue).

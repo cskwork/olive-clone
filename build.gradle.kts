@@ -64,6 +64,9 @@ dependencies {
 
     runtimeOnly("org.postgresql:postgresql")
 
+    // Bucket4j — token-bucket rate limiting (in-memory, no Redis required for the filter)
+    implementation("com.bucket4j:bucket4j_jdk17-core:8.14.0")
+
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
 

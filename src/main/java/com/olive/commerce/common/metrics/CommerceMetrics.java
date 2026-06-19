@@ -35,6 +35,7 @@ public class CommerceMetrics {
     private final AtomicLong redisHits = new AtomicLong(0);
     private final AtomicLong redisMisses = new AtomicLong(0);
     private final AtomicLong outboxPendingCount = new AtomicLong(0);
+    private final AtomicLong outboxDlqCount = new AtomicLong(0);
 
     public CommerceMetrics(MeterRegistry registry) {
         this.registry = registry;
@@ -58,6 +59,9 @@ public class CommerceMetrics {
 
         // Outbox 대기 수 게이지
         registry.gauge("outbox_pending_count", outboxPendingCount);
+
+        // Outbox DLQ 수 게이지 — alert when > 0
+        registry.gauge("outbox_dlq_count", outboxDlqCount);
 
         // DB 풀 활성 연결 수는 HikariCP가 자동으로 노출함
         // spring.datasource.hikari.maximum-pool-size 설정으로 자동 생성됨
@@ -112,6 +116,14 @@ public class CommerceMetrics {
     // Outbox
     public void setOutboxPendingCount(long count) {
         outboxPendingCount.set(count);
+    }
+
+    public void setOutboxDlqCount(long count) {
+        outboxDlqCount.set(count);
+    }
+
+    public long getOutboxDlqCount() {
+        return outboxDlqCount.get();
     }
 
     // MeterRegistry 접근자 (외부에서 직접 사용 필요 시)

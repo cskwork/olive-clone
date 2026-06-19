@@ -23,6 +23,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.List;
 
 /**
@@ -33,6 +36,8 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/admin/deliveries")
 public class DeliveryAdminController {
+
+    private static final Logger log = LoggerFactory.getLogger(DeliveryAdminController.class);
 
     private final DeliveryRepository deliveryRepository;
     private final DeliveryStatusHistoryRepository historyRepository;
@@ -132,8 +137,9 @@ public class DeliveryAdminController {
             deliveryService.issueInvoice(id);
             return ResponseEntity.ok(ApiResponse.success(DeliveryDtos.InvoiceRetryResponse.ok()));
         } catch (Exception e) {
+            log.error("Invoice issuance failed: deliveryId={}", id, e);
             return ResponseEntity.ok(ApiResponse.success(
-                DeliveryDtos.InvoiceRetryResponse.fail(e.getMessage())
+                DeliveryDtos.InvoiceRetryResponse.fail("운송장 발급에 실패했습니다.")
             ));
         }
     }

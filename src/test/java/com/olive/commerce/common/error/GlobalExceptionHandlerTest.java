@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
 
 import static org.hamcrest.Matchers.matchesPattern;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -39,11 +41,21 @@ class GlobalExceptionHandlerTest {
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.data").doesNotExist())
             .andExpect(jsonPath("$.error.code").value("MEMBER_NOT_FOUND"))
-            .andExpect(jsonPath("$.error.message").value("id=42"))
+            // Safe generic message — internal detail "id=42" must NOT appear in the response.
+            .andExpect(jsonPath("$.error.message").value("회원을 찾을 수 없습니다."))
+            .andExpect(jsonPath("$.error.message", not(containsString("id="))))
             .andExpect(jsonPath("$.error.path").value("/test/member-not-found"))
             .andExpect(jsonPath("$.error.traceId")
                 .value(matchesPattern("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")))
             .andExpect(header().exists("X-Request-Id"));
+    }
+
+    @Test
+    void businessException_notFound_doesNotLeakInternalId() throws Exception {
+        mockMvc.perform(get("/test/member-not-found"))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.error.message", not(containsString("42"))))
+            .andExpect(jsonPath("$.error.message", not(containsString("id="))));
     }
 
     @Test
