@@ -98,6 +98,17 @@ public class OutboxEvent {
         }
     }
 
+    /**
+     * Resets a DLQ'd event back to PENDING so the drainer will retry it.
+     * Clears attempt_count and dlq flag so it gets the full retry budget again.
+     */
+    public void requeueFromDlq() {
+        this.dlq = false;
+        this.attemptCount = 0;
+        this.status = OutboxStatus.PENDING.name();
+        this.processedAt = null;
+    }
+
     public Long getId() { return id; }
     public String getAggregateType() { return aggregateType; }
     public Long getAggregateId() { return aggregateId; }

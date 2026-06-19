@@ -16,13 +16,41 @@ import java.util.UUID;
  * Mock PG 클라이언트 구현.
  * QA에서 결제 성공/실패/타임아웃 케이스를 재시작 없이 테스트할 수 있다.
  * 동작 모드는 {@link #setBehaviour(String)}으로 제어한다.
+ *
+ * <p>웹훅 서명용 시크릿은 생성자를 통해 주입된다. Spring 컨텍스트 외부에서
+ * (예: 단위 테스트에서) no-arg 생성자로 인스턴스를 생성할 경우
+ * application-test.yml 의 기본값과 동일한 값이 사용된다.
  */
 public class MockPgClient implements PgClient {
 
     /**
-     * 웹훅 서명용 공유 시크릿 (실제 환경에서는 설정에서 주입).
+     * 단위 테스트용 no-arg 생성자에서 사용하는 기본 시크릿.
+     * 값은 application-test.yml 의 olive.pg.webhook-secret 과 동일해야 한다.
      */
-    private static final String WEBHOOK_SECRET = "mock-webhook-secret-for-testing";
+    static final String DEFAULT_TEST_SECRET = "mock-webhook-secret-for-testing";
+
+    private final String webhookSecret;
+
+    /**
+     * 단위 테스트 전용 no-arg 생성자 — Spring 외부에서 직접 인스턴스화할 때 사용.
+     * Spring 빈으로는 {@link #MockPgClient(String)} 이 사용된다.
+     */
+    public MockPgClient() {
+        this(DEFAULT_TEST_SECRET);
+    }
+
+    /**
+     * Spring Bean 전용 생성자.
+     *
+     * @param webhookSecret {@code olive.pg.webhook-secret} 설정값
+     */
+    public MockPgClient(String webhookSecret) {
+        if (webhookSecret == null || webhookSecret.isBlank()) {
+            throw new IllegalArgumentException(
+                "olive.pg.webhook-secret must not be blank; configure it in application.yml");
+        }
+        this.webhookSecret = webhookSecret;
+    }
 
     /**
      * 동작 모드.
@@ -47,7 +75,7 @@ public class MockPgClient implements PgClient {
         try {
             Mac mac = Mac.getInstance("HmacSHA256");
             SecretKeySpec secretKey = new SecretKeySpec(
-                WEBHOOK_SECRET.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+                webhookSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
             mac.init(secretKey);
             byte[] signedBytes = mac.doFinal(payload.getBytes(StandardCharsets.UTF_8));
             return Base64.getEncoder().encodeToString(signedBytes);
@@ -75,10 +103,11 @@ public class MockPgClient implements PgClient {
     }
 
     /**
-     * 웹훅용 공유 시크릿 반환 (실제로는 환경변수나 설정에서 주입).
+     * 웹훅용 공유 시크릿 반환.
+     * Spring 빈 외부(단위 테스트)에서의 시크릿 조회용.
      */
-    public static String getWebhookSecret() {
-        return WEBHOOK_SECRET;
+    public String getWebhookSecret() {
+        return webhookSecret;
     }
 
     @Override

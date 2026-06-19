@@ -38,13 +38,14 @@ public class JobAdminController {
             JobRun jobRun = jobExecutionService.execute(jobName);
             return ResponseEntity.ok(ApiResponse.success(JobDtos.ManualRunResponse.started(jobRun)));
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.ok(ApiResponse.success(JobDtos.ManualRunResponse.failed(jobName, e.getMessage())));
+            log.warn("Job not found: jobName={} detail={}", jobName, e.getMessage());
+            return ResponseEntity.ok(ApiResponse.success(JobDtos.ManualRunResponse.failed(jobName, "Unknown job name")));
         } catch (JobExecutionService.JobExecutionException e) {
-            log.error("Job execution failed: {}", jobName, e);
-            return ResponseEntity.ok(ApiResponse.success(JobDtos.ManualRunResponse.failed(jobName, e.getCause().getMessage())));
+            log.error("Job execution failed: jobName={}", jobName, e);
+            return ResponseEntity.ok(ApiResponse.success(JobDtos.ManualRunResponse.failed(jobName, "Job execution failed")));
         } catch (Exception e) {
-            log.error("Unexpected error running job: {}", jobName, e);
-            return ResponseEntity.ok(ApiResponse.success(JobDtos.ManualRunResponse.failed(jobName, "Unexpected error: " + e.getMessage())));
+            log.error("Unexpected error running job: jobName={}", jobName, e);
+            return ResponseEntity.ok(ApiResponse.success(JobDtos.ManualRunResponse.failed(jobName, "Unexpected error")));
         }
     }
 

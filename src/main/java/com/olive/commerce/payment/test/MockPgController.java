@@ -1,7 +1,9 @@
 package com.olive.commerce.payment.test;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -13,10 +15,19 @@ import java.util.Map;
  * <p>실제 POST /api/payments/webhook은 OLV-073에서 구현된다.
  * 이 컨트롤러는 테스트에서 PG 웹훅을 트리거하는 용도로 사용된다.
  *
- * <p>profile이 local이고 olive.pg.provider=mock일 때만 활성화된다.
+ * <p>보안:
+ * <ul>
+ *   <li>{@code @Profile("!prod")} — 운영(prod) 환경에서 빈 등록 자체를 차단한다.</li>
+ *   <li>{@code @PreAuthorize("hasRole('SUPER_ADMIN')")} — 인증된 SUPER_ADMIN만 접근 가능하다.
+ *       일반 USER는 403을 받는다.</li>
+ * </ul>
+ *
+ * <p>profile이 mock이고 olive.pg.provider=mock일 때만 활성화된다.
+ * test 프로필은 prod가 아니므로 조건을 통과한다.
  */
 @RestController
 @RequestMapping("/api/_test/pg")
+@Profile("!prod")
 @ConditionalOnProperty(name = "olive.pg.provider", havingValue = "mock")
 public class MockPgController {
 
@@ -28,6 +39,7 @@ public class MockPgController {
      * @return 200 OK
      */
     @PostMapping("/webhook")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<Map<String, String>> triggerWebhook(@RequestBody Map<String, Object> body) {
         // 실제 웹훅은 OLV-073에서 구현
         // 여기서는 시뮬레이션을 위한 엔드포인트만 제공
@@ -49,6 +61,7 @@ public class MockPgController {
      * @return 200 OK
      */
     @PostMapping("/behaviour")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<Map<String, String>> setBehaviour(@RequestBody Map<String, String> body) {
         String behaviour = body.get("behaviour");
         // TODO: OLV-072에서 PaymentService와 연동 시 실제 MockPgClient에 설정 전달

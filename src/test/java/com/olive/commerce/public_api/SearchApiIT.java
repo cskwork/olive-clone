@@ -130,7 +130,7 @@ class SearchApiIT extends PostgresIntegrationSupport {
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("SEARCH_UNAVAILABLE"))
-                .andExpect(jsonPath("$.error.message").value("검색 일시 중단"));
+                .andExpect(jsonPath("$.error.message").value("검색 서비스를 일시적으로 사용할 수 없습니다."));
         } finally {
             OPENSEARCH.getDockerClient().unpauseContainerCmd(OPENSEARCH.getContainerId()).exec();
         }
