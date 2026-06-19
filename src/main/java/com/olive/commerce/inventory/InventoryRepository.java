@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import jakarta.persistence.LockModeType;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -26,6 +27,11 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT i FROM Inventory i WHERE i.productOptionId = :optionId")
     Optional<Inventory> findByProductOptionIdForUpdate(@Param("optionId") Long optionId);
+
+    /**
+     * 옵션 ID 목록으로 재고 일괄 조회 (Admin 상품별 목록용).
+     */
+    List<Inventory> findByProductOptionIdIn(List<Long> productOptionIds);
 
     /**
      * 존재 확인.

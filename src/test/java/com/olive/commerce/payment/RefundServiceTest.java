@@ -2,7 +2,7 @@ package com.olive.commerce.payment;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.olive.commerce.common.audit.AuditLogger;
-import com.olive.commerce.common.error.ErrorCode;
+import com.olive.commerce.common.error.BusinessException;
 import com.olive.commerce.inventory.InventoryService;
 import com.olive.commerce.order.Order;
 import com.olive.commerce.order.OrderItem;
@@ -17,7 +17,6 @@ import com.olive.commerce.promotion.PointService;
 import com.olive.commerce.search.OutboxEventRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -40,6 +39,16 @@ import static org.mockito.Mockito.*;
 
 /**
  * RefundService 단위 테스트 (OLV-074).
+ *
+ * <p>Order setup:
+ * <ul>
+ *   <li>totalProductAmount = 50,000</li>
+ *   <li>discountAmount = 5,000</li>
+ *   <li>pointUsedAmount = 1,000</li>
+ *   <li>deliveryFee = 3,000</li>
+ *   <li>finalPaymentAmount = 47,000</li>
+ *   <li>One item: unitPrice=25,000, qty=2 (totalAmount=50,000)</li>
+ * </ul>
  */
 class RefundServiceTest {
 
@@ -58,6 +67,8 @@ class RefundServiceTest {
     private RefundService refundService;
     private Order testOrder;
     private Payment testPayment;
+    // item ID used in refund requests — matches testOrder's single item
+    private static final Long TEST_ITEM_ID = 10L;
 
     @BeforeEach
     void setUp() {
@@ -84,11 +95,11 @@ class RefundServiceTest {
         testOrder.setId(100L);
         testOrder.setOrderNo("ORD202605120001");
         testOrder.setPriceDetails(
-                BigDecimal.valueOf(50000),
-                BigDecimal.valueOf(5000),
-                BigDecimal.valueOf(1000),
-                BigDecimal.valueOf(3000),
-                BigDecimal.valueOf(47000)
+                BigDecimal.valueOf(50000),  // totalProductAmount
+                BigDecimal.valueOf(5000),   // discountAmount
+                BigDecimal.valueOf(1000),   // pointUsedAmount
+                BigDecimal.valueOf(3000),   // deliveryFee
+                BigDecimal.valueOf(47000)   // finalPaymentAmount
         );
         testOrder.setStatusDirectly(Order.OrderStatus.DELIVERED);
 
@@ -96,6 +107,7 @@ class RefundServiceTest {
                 testOrder, 1L, 100L, "Product", "Option",
                 BigDecimal.valueOf(25000), 2
         );
+        item.setId(TEST_ITEM_ID);
         testOrder.addItem(item);
 
         // 테스트용 결제 생성
@@ -109,12 +121,21 @@ class RefundServiceTest {
         testPayment.approve("mock-payment-key", "mock", BigDecimal.valueOf(47000), OffsetDateTime.now());
     }
 
+    // -------------------------------------------------------------------------
+    // 기존 전체 환불 시나리오
+    // -------------------------------------------------------------------------
+
     @Test
-    void requestRefund_DELIVERED주문_환불요청_성공() {
-        // Given
+    void requestRefund_DELIVERED주문_전체환불요청_성공() {
+        // Given — 전체 수량(2) 요청
+        // computed = (25000*2) - (5000*1.0) - (1000*1.0) = 50000 - 5000 - 1000 = 44000
+        // 배송비(3000)는 item-based 계산에 포함되지 않음
         String orderNo = testOrder.getOrderNo();
         Long memberId = testOrder.getMemberId();
-        RefundDtos.RefundRequestDto request = new RefundDtos.RefundRequestDto("단순 변심", List.of());
+        RefundDtos.RefundRequestDto request = new RefundDtos.RefundRequestDto(
+                "단순 변심",
+                List.of(new RefundDtos.RefundRequestDto.RefundItem(TEST_ITEM_ID, 2))
+        );
 
         when(orderRepository.findByOrderNo(orderNo)).thenReturn(Optional.of(testOrder));
         when(paymentRepository.findByOrderId(testOrder.getId())).thenReturn(Optional.of(testPayment));
@@ -132,9 +153,9 @@ class RefundServiceTest {
         // When
         Refund result = refundService.requestRefund(memberId, orderNo, request);
 
-        // Then
+        // Then — 44,000원 (배송비 제외 상품+할인+포인트 정산)
         assertThat(result.getStatus()).isEqualTo(RefundStatus.REQUESTED);
-        assertThat(result.getAmount()).isEqualTo(testOrder.getFinalPaymentAmount());
+        assertThat(result.getAmount()).isEqualByComparingTo(BigDecimal.valueOf(44000));
         assertThat(result.getReason()).isEqualTo("단순 변심");
         assertThat(result.getOrderId()).isEqualTo(testOrder.getId());
 
@@ -146,7 +167,10 @@ class RefundServiceTest {
         // Given
         String orderNo = testOrder.getOrderNo();
         Long otherMemberId = 999L;
-        RefundDtos.RefundRequestDto request = new RefundDtos.RefundRequestDto("단순 변심", List.of());
+        RefundDtos.RefundRequestDto request = new RefundDtos.RefundRequestDto(
+                "단순 변심",
+                List.of(new RefundDtos.RefundRequestDto.RefundItem(TEST_ITEM_ID, 1))
+        );
 
         when(orderRepository.findByOrderNo(orderNo)).thenReturn(Optional.of(testOrder));
 
@@ -161,7 +185,10 @@ class RefundServiceTest {
         testOrder.setStatusDirectly(Order.OrderStatus.PREPARING);
         String orderNo = testOrder.getOrderNo();
         Long memberId = testOrder.getMemberId();
-        RefundDtos.RefundRequestDto request = new RefundDtos.RefundRequestDto("단순 변심", List.of());
+        RefundDtos.RefundRequestDto request = new RefundDtos.RefundRequestDto(
+                "단순 변심",
+                List.of(new RefundDtos.RefundRequestDto.RefundItem(TEST_ITEM_ID, 1))
+        );
 
         when(orderRepository.findByOrderNo(orderNo)).thenReturn(Optional.of(testOrder));
 
@@ -169,6 +196,169 @@ class RefundServiceTest {
         assertThatThrownBy(() -> refundService.requestRefund(memberId, orderNo, request))
                 .hasMessageContaining("DELIVERED");
     }
+
+    // -------------------------------------------------------------------------
+    // 부분 환불 시나리오 (A6)
+    // -------------------------------------------------------------------------
+
+    /**
+     * 부분 환불 수식 검증 (수량 1개):
+     * itemSubtotal = 25,000 * 1 = 25,000
+     * proportionalDiscount = (25,000/50,000) * 5,000 = 2,500
+     * proportionalPointUsed = (25,000/50,000) * 1,000 = 500
+     * computed = 25,000 - 2,500 - 500 = 22,000
+     */
+    @Test
+    void requestRefund_부분환불_1개수량_비례계산() {
+        // Given
+        String orderNo = testOrder.getOrderNo();
+        Long memberId = testOrder.getMemberId();
+        RefundDtos.RefundRequestDto request = new RefundDtos.RefundRequestDto(
+                "부분 환불",
+                List.of(new RefundDtos.RefundRequestDto.RefundItem(TEST_ITEM_ID, 1))
+        );
+
+        when(orderRepository.findByOrderNo(orderNo)).thenReturn(Optional.of(testOrder));
+        when(paymentRepository.findByOrderId(testOrder.getId())).thenReturn(Optional.of(testPayment));
+        when(refundRepository.findByOrderIdAndStatus(testOrder.getId(), RefundStatus.REQUESTED))
+                .thenReturn(Optional.empty());
+        when(refundRepository.sumApprovedAmountByPaymentId(testPayment.getId())).thenReturn(BigDecimal.ZERO);
+        when(refundRepository.save(any(Refund.class))).thenAnswer(inv -> {
+            Refund r = inv.getArgument(0);
+            r.setId(1L);
+            return r;
+        });
+        when(orderRepository.save(any(Order.class))).thenReturn(testOrder);
+        when(orderStatusHistoryRepository.save(any())).thenReturn(mock(com.olive.commerce.order.OrderStatusHistory.class));
+
+        // When
+        Refund result = refundService.requestRefund(memberId, orderNo, request);
+
+        // Then — 22,000원 기대
+        assertThat(result.getStatus()).isEqualTo(RefundStatus.REQUESTED);
+        assertThat(result.getAmount()).isEqualByComparingTo(BigDecimal.valueOf(22000));
+    }
+
+    /**
+     * 과다 환불 방지: 이미 22,000원이 환불된 상태에서 다시 22,000원 요청.
+     * maxRefundable = 47,000 - 22,000 = 25,000
+     * computed = 22,000
+     * clamp(22,000, 25,000) = 22,000 (정상 처리)
+     */
+    @Test
+    void requestRefund_이미일부환불_이후_남은금액_정상계산() {
+        // Given
+        String orderNo = testOrder.getOrderNo();
+        Long memberId = testOrder.getMemberId();
+        RefundDtos.RefundRequestDto request = new RefundDtos.RefundRequestDto(
+                "추가 환불",
+                List.of(new RefundDtos.RefundRequestDto.RefundItem(TEST_ITEM_ID, 1))
+        );
+
+        when(orderRepository.findByOrderNo(orderNo)).thenReturn(Optional.of(testOrder));
+        when(paymentRepository.findByOrderId(testOrder.getId())).thenReturn(Optional.of(testPayment));
+        when(refundRepository.findByOrderIdAndStatus(testOrder.getId(), RefundStatus.REQUESTED))
+                .thenReturn(Optional.empty());
+        // 이미 22,000원 환불 완료
+        when(refundRepository.sumApprovedAmountByPaymentId(testPayment.getId()))
+                .thenReturn(BigDecimal.valueOf(22000));
+        when(refundRepository.save(any(Refund.class))).thenAnswer(inv -> {
+            Refund r = inv.getArgument(0);
+            r.setId(2L);
+            return r;
+        });
+        when(orderRepository.save(any(Order.class))).thenReturn(testOrder);
+        when(orderStatusHistoryRepository.save(any())).thenReturn(mock(com.olive.commerce.order.OrderStatusHistory.class));
+
+        // When
+        Refund result = refundService.requestRefund(memberId, orderNo, request);
+
+        // Then — 22,000원 정상 환불
+        assertThat(result.getAmount()).isEqualByComparingTo(BigDecimal.valueOf(22000));
+    }
+
+    /**
+     * 초과 환불 방지: 이미 전액(47,000원) 환불 후 추가 요청 → VALIDATION_FAILED.
+     */
+    @Test
+    void requestRefund_이미전액환불_초과요청_거절() {
+        // Given
+        String orderNo = testOrder.getOrderNo();
+        Long memberId = testOrder.getMemberId();
+        RefundDtos.RefundRequestDto request = new RefundDtos.RefundRequestDto(
+                "초과 환불 시도",
+                List.of(new RefundDtos.RefundRequestDto.RefundItem(TEST_ITEM_ID, 1))
+        );
+
+        when(orderRepository.findByOrderNo(orderNo)).thenReturn(Optional.of(testOrder));
+        when(paymentRepository.findByOrderId(testOrder.getId())).thenReturn(Optional.of(testPayment));
+        when(refundRepository.findByOrderIdAndStatus(testOrder.getId(), RefundStatus.REQUESTED))
+                .thenReturn(Optional.empty());
+        // 이미 전액 환불 완료
+        when(refundRepository.sumApprovedAmountByPaymentId(testPayment.getId()))
+                .thenReturn(BigDecimal.valueOf(47000));
+
+        // When & Then
+        assertThatThrownBy(() -> refundService.requestRefund(memberId, orderNo, request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("No refundable amount remaining");
+    }
+
+    /**
+     * 잘못된 orderItemId 요청 → VALIDATION_FAILED.
+     */
+    @Test
+    void requestRefund_존재하지않는_아이템ID_거절() {
+        // Given
+        String orderNo = testOrder.getOrderNo();
+        Long memberId = testOrder.getMemberId();
+        Long nonExistentItemId = 999L;
+        RefundDtos.RefundRequestDto request = new RefundDtos.RefundRequestDto(
+                "잘못된 아이템",
+                List.of(new RefundDtos.RefundRequestDto.RefundItem(nonExistentItemId, 1))
+        );
+
+        when(orderRepository.findByOrderNo(orderNo)).thenReturn(Optional.of(testOrder));
+        when(paymentRepository.findByOrderId(testOrder.getId())).thenReturn(Optional.of(testPayment));
+        when(refundRepository.findByOrderIdAndStatus(testOrder.getId(), RefundStatus.REQUESTED))
+                .thenReturn(Optional.empty());
+        when(refundRepository.sumApprovedAmountByPaymentId(testPayment.getId())).thenReturn(BigDecimal.ZERO);
+
+        // When & Then
+        assertThatThrownBy(() -> refundService.requestRefund(memberId, orderNo, request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Order item not found");
+    }
+
+    /**
+     * 주문 수량 초과 요청 → VALIDATION_FAILED.
+     * item qty=2, 요청 qty=3
+     */
+    @Test
+    void requestRefund_주문수량_초과_거절() {
+        // Given
+        String orderNo = testOrder.getOrderNo();
+        Long memberId = testOrder.getMemberId();
+        RefundDtos.RefundRequestDto request = new RefundDtos.RefundRequestDto(
+                "수량 초과",
+                List.of(new RefundDtos.RefundRequestDto.RefundItem(TEST_ITEM_ID, 3))
+        );
+
+        when(orderRepository.findByOrderNo(orderNo)).thenReturn(Optional.of(testOrder));
+        when(paymentRepository.findByOrderId(testOrder.getId())).thenReturn(Optional.of(testPayment));
+        when(refundRepository.findByOrderIdAndStatus(testOrder.getId(), RefundStatus.REQUESTED))
+                .thenReturn(Optional.empty());
+        when(refundRepository.sumApprovedAmountByPaymentId(testPayment.getId())).thenReturn(BigDecimal.ZERO);
+
+        // When & Then
+        assertThatThrownBy(() -> refundService.requestRefund(memberId, orderNo, request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Requested quantity 3 exceeds ordered quantity 2");
+    }
+
+    // -------------------------------------------------------------------------
+    // 관리자 승인/거절 시나리오 (기존)
+    // -------------------------------------------------------------------------
 
     @Test
     void approveRefund_PG호출_재고복구_포인트복구() {
@@ -195,14 +385,10 @@ class RefundServiceTest {
         assertThat(testPayment.getStatus()).isEqualTo(PaymentStatus.REFUNDED);
         assertThat(testOrder.getStatus()).isEqualTo(Order.OrderStatus.REFUNDED);
 
-        // Verify PG called once
         verify(pgClient, times(1)).refund(any(RefundRequest.class));
-
-        // Verify inventory restocked for each item
         verify(inventoryService, times(testOrder.getItems().size()))
                 .adjust(anyLong(), anyInt(), anyString(), eq(adminId));
 
-        // Verify points restored
         if (testOrder.getPointUsedAmount().compareTo(BigDecimal.ZERO) > 0) {
             verify(pointService).cancel(testOrder.getMemberId(), testOrder.getId());
         }
@@ -228,7 +414,6 @@ class RefundServiceTest {
         assertThat(result.status()).isEqualTo(RefundStatus.APPROVED);
         assertThat(result.message()).contains("Already approved");
 
-        // PG should NOT be called again
         verify(pgClient, never()).refund(any(RefundRequest.class));
         verify(inventoryService, never()).adjust(anyLong(), anyInt(), anyString(), anyLong());
     }
@@ -276,7 +461,6 @@ class RefundServiceTest {
 
         // Then
         assertThat(result.getStatus()).isEqualTo(RefundStatus.FAILED);
-        // Repository save should NOT be called (idempotent)
         verify(refundRepository, never()).save(any());
     }
 

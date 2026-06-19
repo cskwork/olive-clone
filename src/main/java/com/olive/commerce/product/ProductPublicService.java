@@ -2,24 +2,24 @@ package com.olive.commerce.product;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.olive.commerce.batch.ProductRanking;
+import com.olive.commerce.batch.ProductRankingRepository;
+import com.olive.commerce.review.ProductReviewSummary;
+import com.olive.commerce.review.ProductReviewSummaryRepository;
 import jakarta.persistence.EntityManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.math.BigDecimal;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +30,9 @@ import java.util.stream.Collectors;
  *
  * cache-aside 패턴: Detail cache는 direct key, List cache는 versioned key.
  * ProductUpdatedEvent listener에서 cache 무효화 처리.
+ *
+ * A1: reviewCount/avgRating은 product_review_summaries 배치 조회로 채움 (N+1 없음).
+ * A2: POPULAR → sales_count DESC, RATING → avg_rating DESC NULLS LAST.
  */
 @Service
 public class ProductPublicService {
@@ -50,6 +53,8 @@ public class ProductPublicService {
     private final ProductOptionRepository productOptionRepository;
     private final ProductCategoryMappingRepository categoryMappingRepository;
     private final CategoryRepository categoryRepository;
+    private final ProductReviewSummaryRepository reviewSummaryRepository;
+    private final ProductRankingRepository productRankingRepository;
     private final EntityManager em;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
@@ -60,6 +65,8 @@ public class ProductPublicService {
         ProductOptionRepository productOptionRepository,
         ProductCategoryMappingRepository categoryMappingRepository,
         CategoryRepository categoryRepository,
+        ProductReviewSummaryRepository reviewSummaryRepository,
+        ProductRankingRepository productRankingRepository,
         EntityManager em,
         StringRedisTemplate redisTemplate,
         ObjectMapper objectMapper
@@ -69,6 +76,8 @@ public class ProductPublicService {
         this.productOptionRepository = productOptionRepository;
         this.categoryMappingRepository = categoryMappingRepository;
         this.categoryRepository = categoryRepository;
+        this.reviewSummaryRepository = reviewSummaryRepository;
+        this.productRankingRepository = productRankingRepository;
         this.em = em;
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
@@ -129,6 +138,105 @@ public class ProductPublicService {
         return result;
     }
 
+    /**
+     * 랭킹 상위 상품 목록 (rank_score DESC).
+     *
+     * product_rankings 테이블 기반. 랭킹 데이터가 없으면 빈 페이지를 반환합니다.
+     */
+    public Page<ProductDtos.RankingItem> rankings(int page, int size) {
+        List<ProductRanking> allRankings = productRankingRepository.findAllOrderByRankScoreDesc();
+        int total = allRankings.size();
+        int fromIndex = Math.min(page * size, total);
+        int toIndex = Math.min(fromIndex + size, total);
+        List<ProductRanking> slice = allRankings.subList(fromIndex, toIndex);
+
+        List<ProductDtos.RankingItem> items = enrichRankings(slice);
+        return new PageImpl<>(items, PageRequest.of(page, size), total);
+    }
+
+    /**
+     * 베스트셀러 목록 (sales_count DESC).
+     *
+     * product_rankings 테이블의 sales_count 기준 정렬.
+     */
+    public Page<ProductDtos.RankingItem> bestSellers(int page, int size) {
+        List<ProductRanking> allRankings = productRankingRepository.findAll(
+            org.springframework.data.domain.Sort.by("salesCount").descending()
+                .and(org.springframework.data.domain.Sort.by("productId").ascending())
+        );
+        int total = allRankings.size();
+        int fromIndex = Math.min(page * size, total);
+        int toIndex = Math.min(fromIndex + size, total);
+        List<ProductRanking> slice = allRankings.subList(fromIndex, toIndex);
+
+        List<ProductDtos.RankingItem> items = enrichRankings(slice);
+        return new PageImpl<>(items, PageRequest.of(page, size), total);
+    }
+
+    /**
+     * ProductRanking 목록에 상품 상세(브랜드명, 가격, 썸네일)와 리뷰 요약을 결합합니다.
+     */
+    private List<ProductDtos.RankingItem> enrichRankings(List<ProductRanking> rankings) {
+        if (rankings.isEmpty()) {
+            return List.of();
+        }
+        List<Long> productIds = rankings.stream().map(ProductRanking::getProductId).toList();
+
+        // Batch-fetch product info via native query (name, price, brand, thumbnail)
+        @SuppressWarnings("unchecked")
+        List<Object[]> rows = em.createNativeQuery("""
+            SELECT p.id, b.name, p.name, p.sale_price, p.base_price, p.sales_count,
+                   (SELECT url FROM product_images WHERE product_id = p.id AND sort_order = 1 LIMIT 1)
+            FROM products p
+            LEFT JOIN brands b ON p.brand_id = b.id
+            WHERE p.id IN :productIds
+            """)
+            .setParameter("productIds", productIds)
+            .getResultList();
+
+        Map<Long, Object[]> productRowById = rows.stream()
+            .collect(Collectors.toMap(r -> ((Number) r[0]).longValue(), r -> r));
+
+        Map<Long, ProductReviewSummary> summaryByProductId = reviewSummaryRepository
+            .findByProductIdIn(productIds).stream()
+            .collect(Collectors.toMap(ProductReviewSummary::getProductId, s -> s));
+
+        Map<Long, ProductRanking> rankingByProductId = rankings.stream()
+            .collect(Collectors.toMap(ProductRanking::getProductId, r -> r));
+
+        return productIds.stream()
+            .filter(productRowById::containsKey)
+            .map(productId -> {
+                Object[] row = productRowById.get(productId);
+                ProductRanking ranking = rankingByProductId.get(productId);
+                ProductReviewSummary summary = summaryByProductId.get(productId);
+
+                BigDecimal salePrice = (BigDecimal) row[3];
+                BigDecimal basePrice = (BigDecimal) row[4];
+                BigDecimal effectiveSale = salePrice != null ? salePrice : basePrice;
+                BigDecimal discountRate = calculateDiscount(basePrice, effectiveSale);
+                long salesCount = ((Number) row[5]).longValue();
+
+                BigDecimal rating = summary != null ? summary.getAvgRating() : BigDecimal.ZERO;
+                int reviewCount = summary != null ? summary.getReviewCount() : 0;
+
+                return new ProductDtos.RankingItem(
+                    productId,
+                    (String) row[1],
+                    (String) row[2],
+                    effectiveSale,
+                    basePrice,
+                    discountRate,
+                    (String) row[6],
+                    rating,
+                    reviewCount,
+                    salesCount,
+                    ranking != null ? ranking.getRankScore() : BigDecimal.ZERO
+                );
+            })
+            .toList();
+    }
+
     // ========== Event Listeners (Cache Invalidation) ==========
 
     /**
@@ -185,73 +293,62 @@ public class ProductPublicService {
         int page,
         int size
     ) {
-        // Build sort
-        Sort sortSpec = switch (sort != null ? sort : ProductDtos.SortOption.LATEST) {
-            case POPULAR -> Sort.by("id").descending(); // TODO: salesCount when available
-            case LATEST -> Sort.by("id").descending();
-            case PRICE_ASC -> Sort.by("salePrice").ascending();
-            case PRICE_DESC -> Sort.by("salePrice").descending();
-            case RATING -> Sort.by("id").descending(); // TODO: rating when review domain ready
-        };
+        ProductDtos.SortOption effective = sort != null ? sort : ProductDtos.SortOption.LATEST;
 
-        Pageable pageable = PageRequest.of(page, size, sortSpec);
+        Pageable pageable = PageRequest.of(page, size);
 
-        // Status filter: HIDDEN/STOPPED/DRAFT excluded (AC3)
+        // Status filter: HIDDEN/STOPPED/DRAFT excluded (AC3).
+        // RATING sort joins product_review_summaries; others join is not needed.
         @SuppressWarnings("unchecked")
-        List<Object[]> results = em.createNativeQuery("""
-            SELECT p.id, b.name, p.name, p.sale_price, p.base_price,
-                   (SELECT url FROM product_images WHERE product_id = p.id AND sort_order = 1 LIMIT 1)
-            FROM products p
-            LEFT JOIN brands b ON p.brand_id = b.id
-            WHERE p.status IN ('ON_SALE', 'SOLD_OUT')  -- AC3: HIDDEN/STOPPED/DRAFT excluded
-            AND (CAST(:categoryId AS BIGINT) IS NULL OR p.id IN (
-                SELECT pcm.product_id FROM product_category_mapping pcm WHERE pcm.category_id = :categoryId
-            ))
-            AND (CAST(:brandId AS BIGINT) IS NULL OR p.brand_id = :brandId)
-            ORDER BY %s
-            LIMIT :size OFFSET :offset
-            """.formatted(buildOrderByClause(sortSpec)))
+        List<Object[]> results = em.createNativeQuery(buildListQuery(effective))
             .setParameter("categoryId", categoryId)
             .setParameter("brandId", brandId)
             .setParameter("size", size)
-            .setParameter("offset", page * size)
+            .setParameter("offset", (long) page * size)
             .getResultList();
 
+        // Collect product IDs for batch review-summary fetch (avoids N+1).
+        List<Long> productIds = results.stream()
+            .map(row -> ((Number) row[0]).longValue())
+            .toList();
+
+        Map<Long, ProductReviewSummary> summaryByProductId = productIds.isEmpty()
+            ? Map.of()
+            : reviewSummaryRepository.findByProductIdIn(productIds).stream()
+                .collect(Collectors.toMap(ProductReviewSummary::getProductId, s -> s));
+
         List<ProductDtos.PublicListItem> items = results.stream()
-            .map(row -> new ProductDtos.PublicListItem(
-                ((Number) row[0]).longValue(),
-                (String) row[1],
-                (String) row[2],
-                (BigDecimal) row[3],
-                (BigDecimal) row[4],
-                null, // discountRate calculated in from()
-                (String) row[5],
-                BigDecimal.ZERO,
-                0
-            ))
-            .map(item -> new ProductDtos.PublicListItem(
-                item.productId(),
-                item.brandName(),
-                item.productName(),
-                item.salePrice() != null ? item.salePrice() : item.originalPrice(),
-                item.originalPrice(),
-                calculateDiscount(item.originalPrice(), item.salePrice()),
-                item.thumbnailUrl(),
-                item.rating(),
-                item.reviewCount()
-            ))
+            .map(row -> {
+                long productId = ((Number) row[0]).longValue();
+                String brandName = (String) row[1];
+                String productName = (String) row[2];
+                BigDecimal salePrice = (BigDecimal) row[3];
+                BigDecimal basePrice = (BigDecimal) row[4];
+                String thumbnailUrl = (String) row[5];
+
+                BigDecimal effectiveSalePrice = salePrice != null ? salePrice : basePrice;
+                BigDecimal discountRate = calculateDiscount(basePrice, effectiveSalePrice);
+
+                ProductReviewSummary summary = summaryByProductId.get(productId);
+                BigDecimal rating = summary != null ? summary.getAvgRating() : BigDecimal.ZERO;
+                int reviewCount = summary != null ? summary.getReviewCount() : 0;
+
+                return new ProductDtos.PublicListItem(
+                    productId,
+                    brandName,
+                    productName,
+                    effectiveSalePrice,
+                    basePrice,
+                    discountRate,
+                    thumbnailUrl,
+                    rating,
+                    reviewCount
+                );
+            })
             .toList();
 
         // Total count for pagination
-        Long total = ((Number) em.createNativeQuery("""
-            SELECT COUNT(*)
-            FROM products p
-            WHERE p.status IN ('ON_SALE', 'SOLD_OUT')  -- AC3: HIDDEN/STOPPED/DRAFT excluded
-            AND (CAST(:categoryId AS BIGINT) IS NULL OR p.id IN (
-                SELECT pcm.product_id FROM product_category_mapping pcm WHERE pcm.category_id = :categoryId
-            ))
-            AND (CAST(:brandId AS BIGINT) IS NULL OR p.brand_id = :brandId)
-            """)
+        Long total = ((Number) em.createNativeQuery(buildCountQuery(effective))
             .setParameter("categoryId", categoryId)
             .setParameter("brandId", brandId)
             .getSingleResult()).longValue();
@@ -259,19 +356,66 @@ public class ProductPublicService {
         return new PageImpl<>(items, pageable, total);
     }
 
-    private String buildOrderByClause(Sort sort) {
-        return sort.stream()
-            .map(order -> {
-                String property = order.getProperty();
-                String direction = order.isAscending() ? "ASC" : "DESC";
-                // Map to column names
-                return switch (property) {
-                    case "id" -> "p.id " + direction;
-                    case "salePrice" -> "COALESCE(p.sale_price, p.base_price) " + direction;
-                    default -> "p.id " + direction;
-                };
-            })
-            .collect(Collectors.joining(", "));
+    /**
+     * 정렬 옵션에 따라 목록 쿼리를 생성합니다.
+     *
+     * RATING sort: LEFT JOIN product_review_summaries → ORDER BY avg_rating DESC NULLS LAST.
+     * POPULAR sort: ORDER BY products.sales_count DESC (deterministic with id as tiebreak).
+     */
+    private String buildListQuery(ProductDtos.SortOption sort) {
+        // categoryFilter and brandFilter are plain String constants (not text blocks)
+        // so there is no trailing-whitespace stripping at the join point.
+        String categoryFilter =
+            " AND (CAST(:categoryId AS BIGINT) IS NULL OR p.id IN ("
+            + " SELECT pcm.product_id FROM product_category_mapping pcm"
+            + " WHERE pcm.category_id = :categoryId))";
+        String brandFilter =
+            " AND (CAST(:brandId AS BIGINT) IS NULL OR p.brand_id = :brandId)";
+
+        if (sort == ProductDtos.SortOption.RATING) {
+            // Built as a single text block — no mid-block concatenation — then
+            // the filter strings (which carry their own leading space) are appended.
+            return "SELECT p.id, b.name, p.name, p.sale_price, p.base_price,"
+                + " (SELECT url FROM product_images WHERE product_id = p.id AND sort_order = 1 LIMIT 1)"
+                + " FROM products p"
+                + " LEFT JOIN brands b ON p.brand_id = b.id"
+                + " LEFT JOIN product_review_summaries prs ON prs.product_id = p.id"
+                + " WHERE p.status IN ('ON_SALE', 'SOLD_OUT')"
+                + categoryFilter
+                + brandFilter
+                + " ORDER BY prs.avg_rating DESC NULLS LAST, p.id DESC"
+                + " LIMIT :size OFFSET :offset";
+        }
+
+        String orderBy = switch (sort) {
+            case POPULAR -> "p.sales_count DESC, p.id DESC";
+            case LATEST -> "p.id DESC";
+            case PRICE_ASC -> "COALESCE(p.sale_price, p.base_price) ASC, p.id DESC";
+            case PRICE_DESC -> "COALESCE(p.sale_price, p.base_price) DESC, p.id DESC";
+            default -> "p.id DESC";
+        };
+
+        return "SELECT p.id, b.name, p.name, p.sale_price, p.base_price,"
+            + " (SELECT url FROM product_images WHERE product_id = p.id AND sort_order = 1 LIMIT 1)"
+            + " FROM products p"
+            + " LEFT JOIN brands b ON p.brand_id = b.id"
+            + " WHERE p.status IN ('ON_SALE', 'SOLD_OUT')"
+            + categoryFilter
+            + brandFilter
+            + " ORDER BY " + orderBy
+            + " LIMIT :size OFFSET :offset";
+    }
+
+    private String buildCountQuery(ProductDtos.SortOption sort) {
+        return """
+            SELECT COUNT(*)
+            FROM products p
+            WHERE p.status IN ('ON_SALE', 'SOLD_OUT')
+            AND (CAST(:categoryId AS BIGINT) IS NULL OR p.id IN (
+                SELECT pcm.product_id FROM product_category_mapping pcm WHERE pcm.category_id = :categoryId
+            ))
+            AND (CAST(:brandId AS BIGINT) IS NULL OR p.brand_id = :brandId)
+            """;
     }
 
     private BigDecimal calculateDiscount(BigDecimal original, BigDecimal sale) {
@@ -298,7 +442,7 @@ public class ProductPublicService {
             );
         }
 
-        // Options (inventory未実装 → availableQuantity = NULL)
+        // Options (inventory 미구현 → availableQuantity = NULL)
         List<ProductDtos.PublicDetailResponse.OptionSummary> options =
             productOptionRepository.findByProductIdOrderByProductId(productId).stream()
                 .map(opt -> new ProductDtos.PublicDetailResponse.OptionSummary(
@@ -351,6 +495,11 @@ public class ProductPublicService {
         BigDecimal originalPrice = product.getBasePrice();
         BigDecimal discountRate = calculateDiscount(originalPrice, salePrice);
 
+        // Review summary (single product — point lookup, no N+1 concern)
+        ProductReviewSummary summary = reviewSummaryRepository.findByProductId(productId).orElse(null);
+        BigDecimal rating = summary != null ? summary.getAvgRating() : BigDecimal.ZERO;
+        int reviewCount = summary != null ? summary.getReviewCount() : 0;
+
         return new ProductDtos.PublicDetailResponse(
             product.getId(),
             brandName,
@@ -363,8 +512,8 @@ public class ProductPublicService {
             options,
             images,
             categories,
-            BigDecimal.ZERO, // rating: review domain未実装
-            0              // reviewCount: review domain未実装
+            rating,
+            reviewCount
         );
     }
 

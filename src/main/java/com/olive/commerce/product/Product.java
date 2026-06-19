@@ -52,6 +52,9 @@ public class Product {
     @Column(name = "sale_price", precision = 12, scale = 2)
     private BigDecimal salePrice;
 
+    @Column(name = "sales_count", nullable = false)
+    private long salesCount = 0L;
+
     @OneToMany(mappedBy = "product", cascade = jakarta.persistence.CascadeType.ALL, orphanRemoval = true)
     @BatchSize(size = 10)
     private List<ProductOption> options = new ArrayList<>();
@@ -152,6 +155,7 @@ public class Product {
     public String getDescription() { return description; }
     public BigDecimal getBasePrice() { return basePrice; }
     public BigDecimal getSalePrice() { return salePrice; }
+    public long getSalesCount() { return salesCount; }
     public List<ProductOption> getOptions() { return options; }
     public List<ProductImage> getImages() { return images; }
     public OffsetDateTime getCreatedAt() { return createdAt; }

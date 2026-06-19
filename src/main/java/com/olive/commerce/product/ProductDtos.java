@@ -272,4 +272,21 @@ public sealed interface ProductDtos {
     public enum SortOption {
         POPULAR, LATEST, PRICE_ASC, PRICE_DESC, RATING
     }
+
+    /**
+     * 랭킹 목록 응답 항목 (rank_score 기준 정렬).
+     */
+    record RankingItem(
+        Long productId,
+        String brandName,
+        String productName,
+        BigDecimal salePrice,
+        BigDecimal originalPrice,
+        BigDecimal discountRate,
+        String thumbnailUrl,
+        BigDecimal rating,
+        Integer reviewCount,
+        Long salesCount,
+        BigDecimal rankScore
+    ) implements ProductDtos {}
 }

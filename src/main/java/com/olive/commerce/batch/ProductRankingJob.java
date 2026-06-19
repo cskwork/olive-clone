@@ -1,5 +1,8 @@
 package com.olive.commerce.batch;
 
+import com.olive.commerce.product.ProductRepository;
+import com.olive.commerce.review.ProductReviewSummary;
+import com.olive.commerce.review.ProductReviewSummaryRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 상품 랭킹 갱신 배치 작업 (PRD §17).
@@ -17,6 +22,9 @@ import java.util.List;
  * 매시간 실행: 상품별 랭킹 점수를 재계산하여 product_rankings 테이블을 업데이트합니다.
  * <p>
  * 랭킹 점수 = sales_count × 0.5 + review_count × 0.3 + avg_rating × 0.2
+ * <p>
+ * 구현: products.sales_count(V18) + product_review_summaries 배치 조회 후 UPSERT.
+ * 멱등(idempotent): 재실행해도 결과 동일.
  */
 @Component
 @RequiredArgsConstructor
@@ -28,6 +36,8 @@ public class ProductRankingJob {
 
     private final JobRunTracker jobRunTracker;
     private final ProductRankingRepository productRankingRepository;
+    private final ProductRepository productRepository;
+    private final ProductReviewSummaryRepository reviewSummaryRepository;
 
     /**
      * 상품 랭킹 갱신 (매시간).
@@ -37,15 +47,13 @@ public class ProductRankingJob {
     public void updateRankings() {
         JobRun jobRun = jobRunTracker.start(JOB_NAME, JobRun.TriggeredBy.SCHEDULED);
         int processedCount = 0;
-        String errorMessage = null;
 
         try {
             processedCount = recomputeAllRankings();
             jobRunTracker.complete(jobRun, processedCount);
 
         } catch (Exception e) {
-            errorMessage = e.getMessage();
-            jobRunTracker.fail(jobRun, errorMessage, processedCount);
+            jobRunTracker.fail(jobRun, e.getMessage(), processedCount);
             log.error("[{}] Job execution failed: {}", JOB_NAME, e.getMessage(), e);
         }
     }
@@ -53,24 +61,52 @@ public class ProductRankingJob {
     /**
      * 전체 상품의 랭킹을 재계산합니다.
      *
+     * 알고리즘:
+     * 1. products 테이블에서 전체 ID + sales_count 조회
+     * 2. product_review_summaries 배치 조회 (한 번의 IN 쿼리)
+     * 3. 각 상품별 rank_score 계산 후 UPSERT
+     *
      * @return 업데이트된 상품 수
      */
     @Transactional
     public int recomputeAllRankings() {
-        // TODO: 실제 환경에서는 products 테이블에서 상품 ID 목록을 가져와서 처리
-        // 현재는 빈 구현으로 남겨둠 (데이터가 없으므로)
+        List<Long> productIds = productRepository.findAllIds();
+        if (productIds.isEmpty()) {
+            log.info("[{}] No products found; skipping ranking computation", JOB_NAME);
+            return 0;
+        }
 
-        // 향후 구현 예시:
-        // List<Long> productIds = productRepository.findAllIds();
-        // int count = 0;
-        // for (Long productId : productIds) {
-        //     updateProductRanking(productId);
-        //     count++;
-        // }
-        // return count;
+        // Batch-fetch all products (need sales_count)
+        List<com.olive.commerce.product.Product> products = productRepository.findAllById(productIds);
 
-        log.info("[{}] Product ranking recomputation completed (no products to process)", JOB_NAME);
-        return 0;
+        // Batch-fetch review summaries
+        Map<Long, ProductReviewSummary> summaryByProductId = reviewSummaryRepository
+            .findByProductIdIn(productIds).stream()
+            .collect(Collectors.toMap(ProductReviewSummary::getProductId, s -> s));
+
+        // Batch-fetch existing rankings for UPSERT
+        Map<Long, ProductRanking> existingByProductId = productRankingRepository
+            .findAll().stream()
+            .collect(Collectors.toMap(ProductRanking::getProductId, r -> r));
+
+        int count = 0;
+        for (com.olive.commerce.product.Product product : products) {
+            Long productId = product.getId();
+            long salesCount = product.getSalesCount();
+
+            ProductReviewSummary summary = summaryByProductId.get(productId);
+            int reviewCount = summary != null ? summary.getReviewCount() : 0;
+            BigDecimal avgRating = summary != null ? summary.getAvgRating() : BigDecimal.ZERO;
+
+            ProductRanking ranking = existingByProductId.getOrDefault(
+                productId, ProductRanking.create(productId));
+            ranking.update((int) Math.min(salesCount, Integer.MAX_VALUE), reviewCount, avgRating);
+            productRankingRepository.save(ranking);
+            count++;
+        }
+
+        log.info("[{}] Ranking recomputation completed: {} products updated", JOB_NAME, count);
+        return count;
     }
 
     /**

@@ -1,0 +1,15 @@
+{
+  "mode": "LEGACY",
+  "slug": "real-mall-upgrade",
+  "current_phase": "build",
+  "cycles": {
+    "intake": 1, "validate": 0, "plan": 1, "human_feedback": 1, "build": 0,
+    "verify": 0, "qa": 0, "deliver": 0,
+    "reproduce": 0, "diagnose": 0, "fix": 0, "explore": 1
+  },
+  "error_signatures": {},
+  "go_decision": null,
+  "plan_hash": "b3512462c42784016de7b1df7ff3b112f8be7a36c488c8f1010ba9394faaff34",
+  "approval": { "phase": "Build", "status": "APPROVED" },
+  "circuit_breaker_threshold": 3
+}

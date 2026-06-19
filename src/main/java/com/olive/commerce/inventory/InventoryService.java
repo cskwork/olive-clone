@@ -4,6 +4,7 @@ import com.olive.commerce.common.audit.AuditLogger;
 import com.olive.commerce.common.config.InventoryLockProperties;
 import com.olive.commerce.common.error.BusinessException;
 import com.olive.commerce.common.error.ErrorCode;
+import com.olive.commerce.product.ProductOptionRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +46,7 @@ public class InventoryService {
     private final ObjectProvider<RedissonClient> redissonClientProvider;
     private final InventoryLockProperties lockProperties;
     private final AuditLogger auditLogger;
+    private final ProductOptionRepository productOptionRepository;
 
     /**
      * 주문 예약 (atomic across all items, PRD §20.5).
@@ -407,12 +409,30 @@ public class InventoryService {
 
     /**
      * 상품 ID의 모든 옵션 재고 조회 (Admin API용).
-     * 일단 빈 구현 — 추후 product_option 조인 필요.
+     *
+     * <p>productId는 반드시 제공해야 합니다. null 전달은 VALIDATION_FAILED 예외를 발생시킵니다.
+     *
+     * <p>구현: product_options에서 해당 productId의 옵션 ID 목록을 조회한 뒤
+     * inventories 테이블에서 해당 옵션 ID에 해당하는 재고 행을 일괄 조회합니다.
+     * 옵션은 있지만 재고 행이 없는 경우 해당 옵션은 결과에서 제외됩니다.
+     *
+     * @param productId 상품 ID (필수, null 불가)
+     * @return 해당 상품의 옵션별 재고 목록
      */
     public List<Inventory> findByProductId(Long productId) {
-        // TODO: product_option 테이블과 조인 필요
-        // 일단 전체 반환
-        return inventoryRepository.findAll();
+        if (productId == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    "productId is required for inventory list");
+        }
+        List<Long> optionIds = productOptionRepository
+                .findByProductIdOrderByProductId(productId)
+                .stream()
+                .map(po -> po.getId())
+                .toList();
+        if (optionIds.isEmpty()) {
+            return List.of();
+        }
+        return inventoryRepository.findByProductOptionIdIn(optionIds);
     }
 
     /**

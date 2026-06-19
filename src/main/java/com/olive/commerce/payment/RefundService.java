@@ -28,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -102,14 +103,12 @@ public class RefundService {
         BigDecimal totalRefunded = refundRepository.sumApprovedAmountByPaymentId(payment.getId());
         BigDecimal maxRefundable = order.getFinalPaymentAmount().subtract(totalRefunded);
 
-        // 간단 구현: 전체 환불만 (request.items는 무시)
-        // TODO: 부분 환불 시 items의 수량 비례 계산 필요
-        BigDecimal refundAmount = maxRefundable;
-
-        if (refundAmount.compareTo(BigDecimal.ZERO) <= 0) {
+        if (maxRefundable.compareTo(BigDecimal.ZERO) <= 0) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED,
                     "No refundable amount remaining");
         }
+
+        BigDecimal refundAmount = computeRefundAmount(order, request, maxRefundable);
 
         // Step 6: 환불 생성
         Refund refund = Refund.request(payment, order, refundAmount, request.reason());
@@ -379,5 +378,87 @@ public class RefundService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.REFUND_NOT_FOUND,
                         "refundId=" + refundId));
         return RefundDtos.AdminResponse.from(refund);
+    }
+
+    /**
+     * 환불 금액 계산 (부분/전체 환불 공통).
+     *
+     * <p>부분 환불 수식 (PRD §7.7):
+     * <ol>
+     *   <li>itemSubtotal = sum(unitPrice * requestedQty) for each requested item</li>
+     *   <li>proportionalDiscount = (itemSubtotal / totalProductAmount) * discountAmount</li>
+     *   <li>proportionalPointUsed = (itemSubtotal / totalProductAmount) * pointUsedAmount</li>
+     *   <li>refundAmount = itemSubtotal - proportionalDiscount - proportionalPointUsed</li>
+     *   <li>clamp: min(refundAmount, maxRefundable)</li>
+     * </ol>
+     *
+     * <p>배송비는 부분 환불에서는 포함하지 않습니다.
+     * 전체 환불(maxRefundable 그대로 적용)은 배송비를 포함한 금액이 됩니다.
+     *
+     * @param order         주문 엔티티
+     * @param request       환불 요청 DTO
+     * @param maxRefundable 최대 환불 가능 금액 (이미 승인된 환불 제외 후)
+     * @return 환불 금액 (maxRefundable 이하 보장)
+     */
+    private BigDecimal computeRefundAmount(
+            com.olive.commerce.order.Order order,
+            RefundDtos.RefundRequestDto request,
+            BigDecimal maxRefundable
+    ) {
+        List<RefundDtos.RefundRequestDto.RefundItem> requestedItems = request.items();
+
+        // 주문 라인 아이템을 ID로 색인
+        Map<Long, com.olive.commerce.order.OrderItem> itemById = new java.util.HashMap<>();
+        for (com.olive.commerce.order.OrderItem oi : order.getItems()) {
+            itemById.put(oi.getId(), oi);
+        }
+
+        // 요청된 아이템 합계 계산
+        BigDecimal itemSubtotal = BigDecimal.ZERO;
+        for (RefundDtos.RefundRequestDto.RefundItem ri : requestedItems) {
+            com.olive.commerce.order.OrderItem oi = itemById.get(ri.orderItemId());
+            if (oi == null) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                        "Order item not found in this order: orderItemId=" + ri.orderItemId());
+            }
+            if (ri.quantity() > oi.getQuantity()) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                        "Requested quantity " + ri.quantity() +
+                        " exceeds ordered quantity " + oi.getQuantity() +
+                        " for orderItemId=" + ri.orderItemId());
+            }
+            itemSubtotal = itemSubtotal.add(
+                    oi.getUnitPrice().multiply(BigDecimal.valueOf(ri.quantity()))
+            );
+        }
+
+        BigDecimal totalProductAmount = order.getTotalProductAmount();
+
+        // totalProductAmount가 0이면 환불 불가 (방어 코드)
+        if (totalProductAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    "Invalid order: totalProductAmount is zero");
+        }
+
+        // 비례 할인 및 포인트 차감
+        BigDecimal proportion = itemSubtotal.divide(totalProductAmount, 10, RoundingMode.HALF_UP);
+        BigDecimal proportionalDiscount = order.getDiscountAmount()
+                .multiply(proportion)
+                .setScale(0, RoundingMode.HALF_UP);
+        BigDecimal proportionalPointUsed = order.getPointUsedAmount()
+                .multiply(proportion)
+                .setScale(0, RoundingMode.HALF_UP);
+
+        BigDecimal computed = itemSubtotal
+                .subtract(proportionalDiscount)
+                .subtract(proportionalPointUsed);
+
+        // 음수 방어 (할인+포인트가 아이템 금액을 초과하는 극단 케이스)
+        if (computed.compareTo(BigDecimal.ZERO) < 0) {
+            computed = BigDecimal.ZERO;
+        }
+
+        // maxRefundable 초과 금지
+        return computed.min(maxRefundable);
     }
 }

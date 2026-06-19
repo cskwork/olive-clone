@@ -2,6 +2,7 @@ package com.olive.commerce.common.event;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.olive.commerce.delivery.DeliveryCompletedEvent;
+import com.olive.commerce.inventory.InventoryCommitFailedEvent;
 import com.olive.commerce.payment.OrderRefundedEvent;
 import com.olive.commerce.payment.PaymentApprovedEvent;
 import com.olive.commerce.search.OutboxEvent;
@@ -41,7 +42,8 @@ public class OutboxEventDrainer {
             "PAYMENT_APPROVED",
             "ORDER_CANCELED",
             "ORDER_REFUNDED",
-            "DELIVERY_COMPLETED"
+            "DELIVERY_COMPLETED",
+            "INVENTORY_COMMIT_FAILED"
     );
 
     private final OutboxEventRepository outboxEventRepository;
@@ -172,6 +174,14 @@ public class OutboxEventDrainer {
                             getString(payload, "orderNo"),
                             getLong(payload, "memberId"),
                             getString(payload, "invoiceNo")
+                    );
+                    eventPublisher.publishEvent(event);
+                }
+
+                case "INVENTORY_COMMIT_FAILED" -> {
+                    InventoryCommitFailedEvent event = new InventoryCommitFailedEvent(
+                            this,
+                            getLong(payload, "orderId")
                     );
                     eventPublisher.publishEvent(event);
                 }
