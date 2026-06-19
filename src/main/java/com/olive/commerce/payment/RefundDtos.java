@@ -1,6 +1,11 @@
 package com.olive.commerce.payment;
 
 import com.olive.commerce.payment.Refund.RefundStatus;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -13,13 +18,20 @@ public class RefundDtos {
 
     /**
      * 환불 요청 (사용자).
+     * <p>
+     * items가 비어 있으면 전체 환불, 채워져 있으면 부분 환불로 처리됩니다.
      */
     public record RefundRequestDto(
+            @Size(max = 500, message = "환불 사유는 500자 이내여야 합니다")
             String reason,
+            @NotEmpty(message = "환불 항목은 1개 이상이어야 합니다")
+            @Valid
             List<RefundItem> items
     ) {
         public record RefundItem(
+                @NotNull(message = "orderItemId는 필수입니다")
                 Long orderItemId,
+                @Min(value = 1, message = "환불 수량은 1 이상이어야 합니다")
                 int quantity
         ) {}
     }

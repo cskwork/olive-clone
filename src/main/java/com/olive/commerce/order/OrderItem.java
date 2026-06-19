@@ -91,6 +91,13 @@ public class OrderItem {
 
     // Getters
     public Long getId() { return id; }
+
+    /**
+     * 테스트용 ID 설정자.
+     */
+    public void setId(Long id) {
+        this.id = id;
+    }
     public Order getOrder() { return order; }
     public Long getProductId() { return productId; }
     public Long getProductOptionId() { return productOptionId; }

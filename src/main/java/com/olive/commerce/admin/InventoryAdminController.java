@@ -31,17 +31,18 @@ public class InventoryAdminController {
     /**
      * 상품별 재고 목록 조회.
      *
-     * @param productId 상품 ID (선택)
+     * <p>productId는 필수입니다. 제공하지 않으면 400 오류를 반환합니다.
+     * 전체 재고를 조회하는 무제한 쿼리는 허용하지 않습니다.
+     *
+     * @param productId 상품 ID (필수)
      * @return 옵션별 재고 현황
      */
     @GetMapping
     @PreAuthorize("hasRole('PRODUCT_ADMIN')")
     public ApiResponse<List<InventoryDtos.InventoryResponse>> list(
-            @RequestParam(required = false) Long productId
+            @RequestParam Long productId
     ) {
-        List<Inventory> inventories = productId != null
-                ? inventoryService.findByProductId(productId)
-                : inventoryService.findByProductId(null); // TODO: 전체 조회
+        List<Inventory> inventories = inventoryService.findByProductId(productId);
 
         List<InventoryDtos.InventoryResponse> responses = inventories.stream()
                 .map(InventoryDtos.InventoryResponse::from)

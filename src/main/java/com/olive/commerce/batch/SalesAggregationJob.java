@@ -1,5 +1,6 @@
 package com.olive.commerce.batch;
 
+import com.olive.commerce.product.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +18,8 @@ import java.time.ZoneOffset;
  * 매출 집계 배치 작업 (PRD §17).
  * <p>
  * 매일 02:00 실행: 전날의 매출을 카테고리/브랜드/상품별로 집계하여 daily_sales_summaries에 저장합니다.
+ * <p>
+ * A5: aggregateDailySales 후 products.sales_count를 전체 PAID/DELIVERED 주문 기준으로 갱신합니다.
  */
 @Component
 @RequiredArgsConstructor
@@ -28,6 +31,7 @@ public class SalesAggregationJob {
 
     private final JobRunTracker jobRunTracker;
     private final DailySalesSummaryRepository dailySalesSummaryRepository;
+    private final ProductRepository productRepository;
 
     /**
      * 매출 집계 (매일 02:00).
@@ -43,6 +47,10 @@ public class SalesAggregationJob {
             // 전날 (00:00 ~ 23:59) 집계
             LocalDate targetDate = LocalDate.now().minusDays(1);
             processedCount = aggregateDailySales(targetDate);
+
+            // products.sales_count 갱신 (POPULAR 정렬 및 랭킹 계산 기반 데이터)
+            refreshProductSalesCounts();
+
             jobRunTracker.complete(jobRun, processedCount);
 
         } catch (Exception e) {
@@ -101,6 +109,20 @@ public class SalesAggregationJob {
                 JOB_NAME, targetDate, orderCount, totalAmount);
 
         return 1;
+    }
+
+    /**
+     * 전체 products.sales_count를 PAID/DELIVERED 주문 기준으로 갱신합니다.
+     *
+     * 멱등(idempotent): 재실행 시 동일 결과. POPULAR 정렬과 ProductRankingJob에서 사용됩니다.
+     *
+     * @return 갱신된 행 수
+     */
+    @Transactional
+    public int refreshProductSalesCounts() {
+        int updated = productRepository.refreshAllSalesCounts();
+        log.info("[{}] products.sales_count refreshed: {} rows updated", JOB_NAME, updated);
+        return updated;
     }
 
     /**

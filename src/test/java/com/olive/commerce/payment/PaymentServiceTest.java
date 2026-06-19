@@ -240,6 +240,48 @@ class PaymentServiceTest extends PostgresIntegrationSupport {
         org.mockito.Mockito.verify(pgClient, org.mockito.Mockito.times(1)).confirmPayment(any());
     }
 
+    @Test
+    @Transactional
+    @DisplayName("A4: 재고 커밋 실패 시에도 PG 승인은 유실되지 않고, 재시도 시 PG 재호출(이중 결제) 없음")
+    void inventoryCommitFailure_keepsApprovalAndNoDoubleCharge() {
+        // Given
+        TestDataSetup dataSetup = createTestData();
+
+        UUID idempotencyKey = UUID.randomUUID();
+        String paymentKey = "mock-payment-key-inv-fail";
+        BigDecimal amount = BigDecimal.valueOf(35000);
+
+        PaymentDtos.ConfirmRequest request = new PaymentDtos.ConfirmRequest(
+            dataSetup.orderNo, paymentKey, amount);
+
+        ConfirmResponse pgResponse = new ConfirmResponse("APPROVED", LocalDateTime.now(), null);
+        when(pgClient.confirmPayment(any())).thenReturn(pgResponse);
+        // 재고 커밋이 실패하도록 설정 (PG는 이미 승인됨)
+        org.mockito.Mockito.doThrow(new RuntimeException("inventory commit failed"))
+                .when(inventoryService).commit(anyLong());
+        doNothing().when(pointService).earnScheduled(anyLong(), any(), anyLong(), any(), any());
+
+        // When: 첫 confirm — 재고 커밋은 실패하지만 PG 승인은 유실되지 않아야 함
+        PaymentDtos.ConfirmResponse response1 = paymentService.confirmPayment(request, idempotencyKey);
+
+        // Then: 승인이 살아있음 (order PAID, payment APPROVED + paymentKey)
+        assertThat(response1.status()).isEqualTo("PAID");
+        Order order = orderRepository.findById(dataSetup.orderId).orElseThrow();
+        assertThat(order.getStatus().name()).isEqualTo(Order.OrderStatus.PAID.name());
+        assertThat(order.getPaymentKey()).isEqualTo(paymentKey);
+        Payment payment = paymentRepository.findById(dataSetup.paymentId).orElseThrow();
+        assertThat(payment.getStatus()).isEqualTo(Payment.PaymentStatus.APPROVED);
+        assertThat(payment.getPaymentKey()).isEqualTo(paymentKey);
+
+        // When: 동일 요청 재시도 (멱등) — 이미 PAID 분기로 200, PG 재호출 없음
+        PaymentDtos.ConfirmResponse response2 = paymentService.confirmPayment(request, idempotencyKey);
+
+        // Then: 같은 paymentKey 반환, PG는 정확히 1회만 호출 (이중 결제 없음)
+        assertThat(response2.status()).isEqualTo("PAID");
+        assertThat(response2.paymentKey()).isEqualTo(paymentKey);
+        org.mockito.Mockito.verify(pgClient, org.mockito.Mockito.times(1)).confirmPayment(any());
+    }
+
     /**
      * 테스트 데이터 생성 헬퍼 메서드.
      * 같은 트랜잭션 내에서 데이터를 생성합니다.

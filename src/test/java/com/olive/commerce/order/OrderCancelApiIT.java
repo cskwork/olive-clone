@@ -98,6 +98,9 @@ class OrderCancelApiIT extends PostgresIntegrationSupport {
     @Autowired
     private OrderService orderService;
 
+    @Autowired
+    private com.olive.commerce.payment.PaymentRepository paymentRepository;
+
     private Long memberId;
     private Long addressId;
     private Long optionId;
@@ -316,10 +319,13 @@ class OrderCancelApiIT extends PostgresIntegrationSupport {
                     null
             ).orderNo();
 
-            // PAID 상태로 변경
+            // PAID 상태로 변경 + PG paymentKey 저장 (production processSuccessfulPayment과 동일)
             Order order = orderRepository.findByOrderNo(orderNo).get();
             order.toPaid();
+            order.setPaymentKey(PAID_PAYMENT_KEY);
             orderRepository.save(order);
+
+            approvePayment(order.getId(), PAID_PAYMENT_KEY);
 
             // 이력 기록
             OrderStatusHistory history = OrderStatusHistory.transition(
@@ -334,6 +340,24 @@ class OrderCancelApiIT extends PostgresIntegrationSupport {
 
             return order.getId();
         });
+    }
+
+    private static final String PAID_PAYMENT_KEY = "mock-paid-key";
+
+    /**
+     * createOrder가 만든 REQUESTED payment 행을 APPROVED + paymentKey로 승인.
+     * production의 processSuccessfulPayment가 하는 일을 테스트에서 재현한다.
+     */
+    private void approvePayment(Long orderId, String paymentKey) {
+        em.createNativeQuery("""
+                UPDATE payments
+                SET status = 'APPROVED', payment_key = :paymentKey,
+                    approved_amount = requested_amount
+                WHERE order_id = :orderId
+                """)
+                .setParameter("paymentKey", paymentKey)
+                .setParameter("orderId", orderId)
+                .executeUpdate();
     }
 
     /**
@@ -353,10 +377,13 @@ class OrderCancelApiIT extends PostgresIntegrationSupport {
                     null
             ).orderNo();
 
-            // PAID → PREPARING 상태로 변경
+            // PAID → PREPARING 상태로 변경 + PG paymentKey 저장
             Order order = orderRepository.findByOrderNo(orderNo).get();
             order.toPaid();
+            order.setPaymentKey(PAID_PAYMENT_KEY);
             orderRepository.save(order);
+
+            approvePayment(order.getId(), PAID_PAYMENT_KEY);
 
             // 상태 전이: PAID
             orderStatusHistoryRepository.save(OrderStatusHistory.transition(
@@ -466,6 +493,37 @@ class OrderCancelApiIT extends PostgresIntegrationSupport {
         assertThat(pointHistories).anyMatch(h ->
                 "CANCEL".equals(h.getChangeType().name()) &&
                 h.getAmount().compareTo(BigDecimal.ZERO) > 0);
+    }
+
+    @Test
+    void cancelOrder_fromPaidStatus_triggersPgCancelAndPaymentCanceled() throws Exception {
+        // Given: PAID 상태 + 저장된 paymentKey를 가진 주문 (실제 청구된 결제)
+        Long orderId = createPaidOrder();
+        String orderNo = orderRepository.findById(orderId).get().getOrderNo();
+
+        // 사전 조건: payment가 APPROVED이고 order에 paymentKey가 저장되어 있어야 함
+        var payment = paymentRepository.findByOrderId(orderId).orElseThrow();
+        assertThat(payment.getStatus()).isEqualTo(com.olive.commerce.payment.Payment.PaymentStatus.APPROVED);
+        assertThat(orderRepository.findById(orderId).get().getPaymentKey()).isEqualTo("mock-paid-key");
+
+        // When: 사용자가 주문 취소 → PG 취소 경로 트리거
+        mockMvc.perform(post("/api/orders/{orderNo}/cancel", orderNo)
+                        .with(userAuth())
+                        .header("Idempotency-Key", "cancel-pg-1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\": \"PG 취소 검증\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("CANCELED"));
+
+        // Then: 주문 CANCELED
+        assertThat(orderRepository.findById(orderId).get().getStatus())
+                .isEqualTo(Order.OrderStatus.CANCELED);
+
+        // Then: 저장된 paymentKey를 사용하여 결제가 PG에서 CANCELED 상태로 전이됨
+        var canceledPayment = paymentRepository.findByOrderId(orderId).orElseThrow();
+        assertThat(canceledPayment.getStatus())
+                .isEqualTo(com.olive.commerce.payment.Payment.PaymentStatus.CANCELED);
+        assertThat(canceledPayment.getPaymentKey()).isEqualTo("mock-paid-key");
     }
 
     @Test

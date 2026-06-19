@@ -12,6 +12,9 @@ import com.olive.commerce.member.MemberRepository;
 import com.olive.commerce.payment.Payment;
 import com.olive.commerce.payment.PaymentDtos;
 import com.olive.commerce.payment.PaymentRepository;
+import com.olive.commerce.payment.client.PgClient;
+import com.olive.commerce.payment.client.dto.CancelRequest;
+import com.olive.commerce.payment.client.dto.CancelResponse;
 import com.olive.commerce.product.ProductOption;
 import com.olive.commerce.product.ProductOptionRepository;
 import com.olive.commerce.promotion.CouponService;
@@ -67,6 +70,7 @@ public class OrderService {
     private final CouponService couponService;
     private final PointService pointService;
     private final PaymentRepository paymentRepository;
+    private final PgClient pgClient;
 
     private final AuditLogger auditLogger;
     private final ApplicationEventPublisher eventPublisher;
@@ -563,11 +567,11 @@ public class OrderService {
         Order.OrderStatus fromStatus = order.getStatus();
         Long orderId = order.getId();
 
-        // 1. PG 결제 취소 (PAID/PREPARING 상태인 경우)
-        // OLV-072에서 실제 PG 연동 예정, 현재는 mock 로그만
+        // 1. PG 결제 취소 (PAID/PREPARING 상태인 경우 — 이미 청구된 금액을 PG에서 되돌림).
+        // 저장된 paymentKey로 PG를 호출하고 payments 행을 CANCELED로 전이한다.
+        // CREATED/PAYMENT_PENDING은 아직 청구 전이므로 PG 취소를 호출하지 않는다.
         if (fromStatus == Order.OrderStatus.PAID || fromStatus == Order.OrderStatus.PREPARING) {
-            log.info("PG cancel required for order: orderId={}, status={}", orderId, fromStatus);
-            // TODO: paymentService.cancelPayment(order.getPaymentKey(), order.getFinalPaymentAmount());
+            cancelPaymentAtPg(order, reason);
         }
 
         // 2. 재고 예약 해제
@@ -578,23 +582,15 @@ public class OrderService {
             // 계속 진행: 재고 해제 실패가 주문 취소를 막아서는 안 됨
         }
 
-        // 3. 쿠폰 복구
+        // 3. 쿠폰 복구.
+        // 보상 실패는 삼키지 않는다 — 이 메서드는 @Transactional이므로 예외를 전파하여
+        // 취소 전체를 롤백한다(all-or-nothing). 부분 보상으로 dirty state가 남지 않도록 한다.
         if (order.getUsedMemberCouponId() != null) {
-            try {
-                couponService.restore(order.getUsedMemberCouponId(), orderId);
-            } catch (Exception e) {
-                log.warn("Failed to restore coupon for order {}: {}", orderId, e.getMessage());
-                // 계속 진행
-            }
+            couponService.restore(order.getUsedMemberCouponId(), orderId);
         }
 
-        // 4. 포인트 복구
-        try {
-            pointService.cancel(order.getMemberId(), orderId);
-        } catch (Exception e) {
-            log.warn("Failed to cancel points for order {}: {}", orderId, e.getMessage());
-            // 계속 진행
-        }
+        // 4. 포인트 복구 (동일 정책: 실패 시 전파 → 롤백).
+        pointService.cancel(order.getMemberId(), orderId);
 
         // 5. 상태 전이 (관리자는 강제 취소, 사용자는 일반 취소)
         if (kind == OrderCanceledEvent.CancelKind.ADMIN) {
@@ -663,6 +659,46 @@ public class OrderService {
                 fromStatus,
                 kind
         ));
+    }
+
+    /**
+     * PAID/PREPARING 주문의 PG 결제를 취소한다 (이미 청구된 금액 환원).
+     * <p>
+     * 저장된 paymentKey로 PG cancel을 호출하고, payments 행을 CANCELED로 전이한다.
+     * PG 호출 실패는 삼키지 않고 전파하여(트랜잭션 롤백) 결제가 살아있는 채로
+     * 주문만 취소되는 불일치를 막는다.
+     */
+    private void cancelPaymentAtPg(Order order, String reason) {
+        Long orderId = order.getId();
+        Payment payment = paymentRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PAYMENT_NOT_FOUND,
+                        "No payment found for order: " + orderId));
+
+        // 이미 취소/환불된 결제는 PG 재호출 없이 멱등 처리
+        if (payment.getStatus() == Payment.PaymentStatus.CANCELED
+                || payment.getStatus() == Payment.PaymentStatus.REFUNDED) {
+            log.info("Payment already {} for order {}, skipping PG cancel", payment.getStatus(), orderId);
+            return;
+        }
+
+        String paymentKey = order.getPaymentKey() != null ? order.getPaymentKey() : payment.getPaymentKey();
+        if (paymentKey == null) {
+            throw new BusinessException(ErrorCode.PAYMENT_NOT_FOUND,
+                    "No paymentKey stored for paid order: " + orderId);
+        }
+
+        CancelResponse pgResponse = pgClient.cancelPayment(new CancelRequest(
+                paymentKey,
+                order.getFinalPaymentAmount(),
+                reason
+        ));
+
+        payment.setStatus(Payment.PaymentStatus.CANCELED);
+        payment.setFailedReason(reason);
+        paymentRepository.save(payment);
+
+        log.info("PG cancel completed for order {}: paymentKey={}, pgStatus={}",
+                orderId, paymentKey, pgResponse.status());
     }
 
     // ========== Order List/Detail (OLV-063) ==========

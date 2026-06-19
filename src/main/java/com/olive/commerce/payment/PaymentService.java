@@ -199,8 +199,9 @@ public class PaymentService {
     ) {
         OffsetDateTime now = OffsetDateTime.now();
 
-        // Step 4-1: 주문 상태 PAID 변경
+        // Step 4-1: 주문 상태 PAID 변경 + PG paymentKey 저장 (취소 시 PG 취소 호출에 사용)
         order.toPaid();
+        order.setPaymentKey(paymentKey);
         orderRepository.save(order);
 
         // Step 4-2: 결제 승인 상태 변경
@@ -224,12 +225,18 @@ public class PaymentService {
         );
         orderStatusHistoryRepository.save(history);
 
-        // Step 5: 재고 선점 확정
+        // Step 5: 재고 선점 확정.
+        // PG 승인(order=PAID, payment=APPROVED, APPROVE 트랜잭션 로그)은 이 트랜잭션에서
+        // 이미 영속화되었다. 재고 커밋 실패가 이 트랜잭션을 롤백하면 PG 승인 기록이 사라지고,
+        // 재시도 시 멱등성 검사(Step 2)가 APPROVE 트랜잭션을 찾지 못해 PG를 다시 호출 → 이중 결제 위험.
+        // 따라서 재고 커밋 실패는 결제 승인을 롤백시키지 않고, 보정용 outbox 이벤트로 기록한다.
+        // 재시도는 "이미 PAID + APPROVED" 멱등 분기로 200을 반환하며 재결제하지 않는다.
         try {
             inventoryService.commit(order.getId());
         } catch (Exception e) {
-            log.error("Failed to commit inventory for order {}: {}", order.getId(), e.getMessage());
-            throw e;
+            log.error("Failed to commit inventory for order {} (payment already approved, recording for compensation): {}",
+                    order.getId(), e.getMessage());
+            recordInventoryCommitFailure(order, payment, e);
         }
 
         // Note: 쿠폰 사용과 포인트 사용은 OrderService.createOrder에서 이미 처리됨
@@ -286,6 +293,38 @@ public class PaymentService {
                 payment.getId(),
                 payment.getPaymentKey(),
                 payment.getApprovedAmount()
+        ));
+    }
+
+    /**
+     * 재고 커밋 실패를 보정용 outbox 이벤트로 기록.
+     * <p>
+     * PG 승인은 이미 확정되었으므로 롤백하지 않는다. 배치/워커가 이 이벤트를 받아
+     * 재고 커밋을 재시도하거나 수동 보정한다.
+     */
+    private void recordInventoryCommitFailure(Order order, Payment payment, Exception cause) {
+        try {
+            String payloadJson = objectMapper.writeValueAsString(Map.of(
+                    "orderId", order.getId(),
+                    "orderNo", order.getOrderNo(),
+                    "paymentId", payment.getId(),
+                    "reason", cause.getMessage() != null ? cause.getMessage() : cause.getClass().getSimpleName()
+            ));
+            OutboxEvent outboxEvent = OutboxEvent.create(
+                    "PAYMENT",
+                    payment.getId(),
+                    "INVENTORY_COMMIT_FAILED",
+                    payloadJson
+            );
+            outboxEventRepository.save(outboxEvent);
+        } catch (Exception e) {
+            log.error("Failed to record inventory-commit-failure event for payment {}: {}",
+                    payment.getId(), e.getMessage());
+        }
+        auditLogger.log("INVENTORY_COMMIT_FAILED", Map.of(
+                "orderId", order.getId(),
+                "orderNo", order.getOrderNo(),
+                "paymentId", payment.getId()
         ));
     }
 

@@ -2,6 +2,8 @@ package com.olive.commerce.review;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -20,4 +22,12 @@ public interface ProductReviewSummaryRepository extends JpaRepository<ProductRev
     default Optional<ProductReviewSummary> findByProductId(Long productId) {
         return findById(productId);
     }
+
+    /**
+     * 여러 상품의 리뷰 요약을 한 번에 조회 (N+1 방지용 배치 조회).
+     *
+     * @param productIds 상품 ID 목록
+     * @return 해당 상품들의 리뷰 요약 (존재하는 것만 반환)
+     */
+    List<ProductReviewSummary> findByProductIdIn(Collection<Long> productIds);
 }

@@ -63,6 +63,9 @@ public class Order {
     @Column(name = "used_member_coupon_id")
     private Long usedMemberCouponId;
 
+    @Column(name = "payment_key", length = 255)
+    private String paymentKey;
+
     @OneToOne
     @JoinColumn(name = "delivery_address_id", nullable = false, insertable = false, updatable = false)
     private MemberAddress deliveryAddress;
@@ -112,6 +115,13 @@ public class Order {
 
     public void setUsedMemberCouponId(Long usedMemberCouponId) {
         this.usedMemberCouponId = usedMemberCouponId;
+    }
+
+    /**
+     * PG 결제 키 저장 (결제 승인 시점). 주문 취소 시 PG 취소 호출에 사용된다.
+     */
+    public void setPaymentKey(String paymentKey) {
+        this.paymentKey = paymentKey;
     }
 
     public void addItem(OrderItem item) {
@@ -249,6 +259,7 @@ public class Order {
     public BigDecimal getDeliveryFee() { return deliveryFee; }
     public BigDecimal getFinalPaymentAmount() { return finalPaymentAmount; }
     public Long getUsedMemberCouponId() { return usedMemberCouponId; }
+    public String getPaymentKey() { return paymentKey; }
     public Long getDeliveryAddressId() { return deliveryAddressId; }
     public MemberAddress getDeliveryAddress() { return deliveryAddress; }
     public List<OrderItem> getItems() { return items; }
