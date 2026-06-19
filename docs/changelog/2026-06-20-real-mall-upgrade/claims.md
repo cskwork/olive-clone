@@ -55,3 +55,19 @@ run-to-prove: `JAVA_HOME=/c/Users/a/.jdks/temurin-21/jdk-21.0.11+10 ./gradlew te
 expected: 404 본문에 내부 id 없음·제너릭, DLQ requeue가 PENDING 전이+게이지 반영
 risks(committee): generic 메시지가 유용정보 과도제거(클라는 error.code로 분기 권장); DLQ 게이지가 admin 호출시에만 갱신(스케줄러 미연결 — staleness); findAllDlq 무페이지네이션.
 
+---
+
+## CLAIM M3-wishlist
+what: 신규 wishlist 모듈(cart 패턴 미러). wishlist_items(member_id, product_id, UNIQUE(member_id,product_id), created_at) V19. WishlistService.add(멱등, 상품존재검증→PRODUCT_NOT_FOUND)/remove/list(배치 product 조회로 N+1 회피). WishlistController /api/me/wishlist GET(페이지)/POST/DELETE{productId}, @AuthenticationPrincipal. 인증 경로(USER)라 SecurityConfig 불변.
+files: wishlist/WishlistItem.java, WishlistItemRepository.java, WishlistDtos.java, WishlistService.java, WishlistController.java (all new), V19__wishlist.sql; test wishlist/WishlistApiIT(new, 5 ACs)
+run-to-prove: `JAVA_HOME=/c/Users/a/.jdks/temurin-21/jdk-21.0.11+10 ./gradlew test --tests 'com.olive.commerce.wishlist.WishlistApiIT'`
+expected: add→list 노출, 중복add 멱등(1건), remove, 없는상품 404, per-member 격리 — 5 그린
+risks(committee): 동시 double-add는 app-check 통과 후 DB UNIQUE에 의존(DataIntegrityViolation→500 가능, 프로덕션은 catch 권장); 네이티브 IN-list product 조회
+
+## CLAIM M3-mypage-subresources
+what: C2(/api/me/summary)는 **이미 구현돼 있음**(MemberProfileController.summary: pointService.spendableBalance + memberCoupons.countByMemberIdAndStatus("ISSUED") + orders.countByMemberId + grade) — 검증만. C3 신규: GET /api/categories/{id}/products, GET /api/brands/{id}/products → 기존 productPublicService.list(categoryId/brandId 필터) 재사용, 존재검증(CATEGORY/BRAND_NOT_FOUND). SecurityConfig에 GET /api/categories/*/products, /api/brands/*/products permit 2줄 추가(catch-all 위).
+files: public_api/CategoryPublicController.java, public_api/BrandPublicController.java, common/config/SecurityConfig.java(permit 2); test public_api/SubResourceProductApiIT(new, 8)
+run-to-prove: `JAVA_HOME=/c/Users/a/.jdks/temurin-21/jdk-21.0.11+10 ./gradlew test --tests 'com.olive.commerce.public_api.SubResourceProductApiIT' --tests 'com.olive.commerce.member.MemberProfileApiIT'`
+expected: 카테고리/브랜드 하위리소스 목록·페이지·404·무인증 + 마이페이지요약 — 그린
+risks(committee): permit 순서(catch-all 앞), 캐시 stale, N+1(기존 list 재사용이라 신규 없음)
+

@@ -271,6 +271,27 @@ class MemberProfileApiIT extends PostgresIntegrationSupport {
     }
 
     // ---------------------------------------------------------------------
+    // GET /api/me/summary
+    // ---------------------------------------------------------------------
+    @Test
+    void getSummary_returnsZeroCountsForNewMember() throws Exception {
+        mockMvc.perform(get("/api/me/summary")
+                .header("Authorization", "Bearer " + aliceToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.pointBalance").value(0))
+            .andExpect(jsonPath("$.data.usableCouponCount").value(0))
+            .andExpect(jsonPath("$.data.totalOrderCount").value(0))
+            .andExpect(jsonPath("$.data.grade").value("BRONZE"));
+    }
+
+    @Test
+    void getSummary_requiresAuthentication() throws Exception {
+        mockMvc.perform(get("/api/me/summary"))
+            .andExpect(status().isUnauthorized());
+    }
+
+    // ---------------------------------------------------------------------
     // helpers
     // ---------------------------------------------------------------------
     private long signup(String email, String password, String name, String phone, long gradeId) throws Exception {
