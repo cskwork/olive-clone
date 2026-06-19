@@ -62,6 +62,14 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     );
 
     /**
+     * 회원의 전체 주문 수를 반환합니다.
+     *
+     * @param memberId 회원 ID
+     * @return 전체 주문 수
+     */
+    long countByMemberId(Long memberId);
+
+    /**
      * order_no로 주문 조회.
      */
     Optional<Order> findByOrderNo(String orderNo);

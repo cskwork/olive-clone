@@ -50,6 +50,15 @@ public interface MemberCouponRepository extends JpaRepository<MemberCoupon, Long
     Optional<MemberCoupon> findByIdWithCoupon(@Param("id") Long id);
 
     /**
+     * 회원의 특정 상태 쿠폰 수를 반환합니다.
+     *
+     * @param memberId 회원 ID
+     * @param status   쿠폰 상태
+     * @return 해당 상태 쿠폰 수
+     */
+    long countByMemberIdAndStatus(Long memberId, String status);
+
+    /**
      * 만료일이 지난 ISSUED 상태의 회원 쿠폰을 조회합니다 (배치 처리용, PRD §17).
      * idx_member_coupons_status_expires 인덱스 활용.
      *

@@ -90,3 +90,8 @@
 
 ### M2 — 보안/운영 하드닝 (IN PROGRESS)
 - 2 병렬 빌더(파일소유 disjoint): M2-A(config+edge security: build.gradle/yml/SecurityConfig/RateLimitFilter/MockPg*), M2-B(error hygiene+DLQ ops: GlobalExceptionHandler/JobAdmin/DeliveryAdmin/Outbox requeue).
+- conductor 수정: bucket4j 좌표(8.10.1→8.14.0), matchesProfiles API오용. yaml 쓰기 불가→B4를 Java ServerTuningConfig로.
+- conductor smoke: 14 클래스(M2+횡단회귀) GREEN(5m40s). **commit 4f2658c**.
+
+### M3 — 신규 백엔드 기능 (IN PROGRESS)
+- 2 병렬 빌더: M3-A(Wishlist 모듈+V19+tests), M3-B(/api/me/summary 보강 + /api/categories|brands/{id}/products + SecurityConfig 2 permits).

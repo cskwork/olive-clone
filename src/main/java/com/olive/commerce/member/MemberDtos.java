@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import java.math.BigDecimal;
 
 /**
  * 회원 프로필 및 배송지 DTO.
@@ -19,6 +20,17 @@ public class MemberDtos {
         String phone,
         String grade,
         String role
+    ) {}
+
+    /**
+     * 마이페이지 요약 응답 (GET /api/me/summary).
+     * 포인트, 사용 가능 쿠폰 수, 전체 주문 수, 등급명을 담습니다.
+     */
+    public record SummaryResponse(
+        BigDecimal pointBalance,
+        long usableCouponCount,
+        long totalOrderCount,
+        String grade
     ) {}
 
     /** 프로필 수정 요청 (PATCH /api/me) */
