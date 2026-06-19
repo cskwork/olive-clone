@@ -123,6 +123,31 @@
   color: var(--brand-green);
 }
 
+/* Cart icon wrapper for badge positioning */
+.iconBtnInner {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cartBadge {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  background: var(--sale-red);
+  color: var(--white);
+  font-size: 9px;
+  font-weight: var(--fw-bold);
+  line-height: 16px;
+  border-radius: var(--radius-pill);
+  text-align: center;
+  white-space: nowrap;
+}
+
 .iconBtnLabel {
   font-size: 10px;
   font-weight: var(--fw-medium);
@@ -138,6 +163,7 @@
   height: var(--touch-target);
   color: var(--white);
   margin-left: auto;
+  flex-shrink: 0;
 }
 
 @media (min-width: 768px) {
@@ -231,6 +257,188 @@
 
 .megaLink:hover {
   background: var(--brand-green-tint);
+  color: var(--brand-green-dark);
+}
+
+/* ---- Mobile drawer overlay ---- */
+.drawerOverlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-dim);
+  z-index: calc(var(--z-overlay) - 1);
+}
+
+/* ---- Mobile drawer ---- */
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(320px, 90vw);
+  background: var(--white);
+  z-index: var(--z-overlay);
+  overflow-y: auto;
+  transform: translateX(100%);
+  transition: transform var(--dur-base) var(--ease-out);
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+}
+
+.drawerOpen {
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.drawerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--grey-200);
+  background: var(--ink-900);
+  min-height: var(--gnb-height-mobile);
+  flex-shrink: 0;
+}
+
+.drawerTitle {
+  font-size: 15px;
+  font-weight: var(--fw-bold);
+  color: var(--white);
+}
+
+.drawerClose {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  color: var(--white);
+  border-radius: var(--radius-sm);
+}
+
+.drawerSearch {
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--grey-200);
+  flex-shrink: 0;
+}
+
+.drawerSearchForm {
+  display: flex;
+  align-items: center;
+  border: 1.5px solid var(--grey-200);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  height: 40px;
+  background: var(--white);
+}
+
+.drawerSearchInput {
+  flex: 1;
+  padding: 0 var(--space-4);
+  font-size: 13px;
+  color: var(--ink-900);
+  border: none;
+  outline: none;
+  height: 100%;
+  background: transparent;
+}
+
+.drawerSearchInput::placeholder {
+  color: var(--grey-500);
+}
+
+.drawerSearchBtn {
+  width: 40px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--grey-500);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.drawerNav {
+  padding: var(--space-5);
+  border-bottom: 1px solid var(--grey-200);
+}
+
+.drawerSectionLabel {
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+  color: var(--grey-500);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: var(--space-4);
+}
+
+.drawerCatGroup {
+  margin-bottom: var(--space-4);
+}
+
+.drawerCatLink {
+  display: block;
+  font-size: 14px;
+  font-weight: var(--fw-semibold);
+  color: var(--ink-900);
+  padding: var(--space-2) 0;
+  min-height: var(--touch-target);
+  line-height: var(--touch-target);
+}
+
+.drawerCatLink:hover {
+  color: var(--brand-green-dark);
+}
+
+.drawerSubList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  padding-left: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.drawerSubLink {
+  font-size: 12px;
+  color: var(--grey-500);
+  padding: var(--space-1) var(--space-3);
+  background: var(--grey-100);
+  border-radius: var(--radius-pill);
+  transition: background var(--dur-fast), color var(--dur-fast);
+  white-space: nowrap;
+}
+
+.drawerSubLink:hover {
+  background: var(--brand-green-tint);
+  color: var(--brand-green-dark);
+}
+
+.drawerMember {
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.drawerMemberLink {
+  display: block;
+  font-size: 14px;
+  color: var(--ink-700);
+  padding: var(--space-3) 0;
+  min-height: var(--touch-target);
+  line-height: calc(var(--touch-target) - var(--space-3) * 2);
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: var(--fw-medium);
+  transition: color var(--dur-fast);
+}
+
+.drawerMemberLink:hover {
   color: var(--brand-green-dark);
 }
 

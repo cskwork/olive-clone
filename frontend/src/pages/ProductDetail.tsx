@@ -1,19 +1,53 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { apiGet, ApiError, getAccessToken } from '@/lib/api'
+import { apiGet, apiGetPage, ApiError, getAccessToken } from '@/lib/api'
 import { addToCart } from '@/lib/cart'
-import type { ProductDetail as ProductDetailType } from '@/lib/types'
+import { addWishlist, removeWishlist } from '@/lib/wishlist'
+import type { ProductDetail as ProductDetailType, PageMeta } from '@/lib/types'
 import type { SelectedOption } from '@/components/QuantityOptionSelector/QuantityOptionSelector'
 import ImageCarousel from '@/components/ImageCarousel/ImageCarousel'
 import PriceDisplay from '@/components/PriceDisplay/PriceDisplay'
 import RatingStars from '@/components/RatingStars/RatingStars'
 import QuantityOptionSelector from '@/components/QuantityOptionSelector/QuantityOptionSelector'
+import ReviewBlock from '@/components/ReviewBlock/ReviewBlock'
 import styles from './ProductDetail.module.css'
 
 function formatKrw(n: number): string {
   return n.toLocaleString('ko-KR') + '원'
 }
+
+// Review shape returned by GET /api/products/{productId}/reviews
+interface ProductReview {
+  id: number
+  productId: number
+  rating: number
+  title: string | null
+  body: string
+  imageUrls: string[] | null
+  createdAt: string
+}
+
+// Masked author ID derived from review index (real API does not return member name in public endpoint)
+function maskedAuthorId(reviewId: number): string {
+  const suffix = String(reviewId).slice(-3).padStart(3, '0')
+  return `고객***${suffix}`
+}
+
+// Format ISO date string to YYYY.MM.DD
+function formatDate(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString('ko-KR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).replace(/\. /g, '.').replace(/\.$/, '')
+  } catch {
+    return iso.slice(0, 10)
+  }
+}
+
+const REVIEW_PAGE_SIZE = 5
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>()
@@ -21,9 +55,16 @@ export default function ProductDetail() {
   const queryClient = useQueryClient()
 
   const [selectedOptions, setSelectedOptions] = useState<SelectedOption[]>([])
-  // Plain qty used when product has no options
   const [plainQty, setPlainQty] = useState(1)
   const [toastMsg, setToastMsg] = useState<string | null>(null)
+  // Wishlist — optimistic local state + API mutations
+  const [wishlistPending, setWishlistPending] = useState(false)
+  const [isWishlisted, setIsWishlisted] = useState(false)
+  // Review pagination — track pages loaded so far
+  const [reviewPage, setReviewPage] = useState(0)
+  // Accumulated reviews across pages
+  const [accReviews, setAccReviews] = useState<ProductReview[]>([])
+  const [accMeta, setAccMeta] = useState<PageMeta | undefined>(undefined)
 
   const { data: product, isLoading, isError, error } = useQuery({
     queryKey: ['product', id],
@@ -31,7 +72,28 @@ export default function ProductDetail() {
     enabled: Boolean(id),
   })
 
-  const { mutate: addToCartMutate, isPending: addingToCart } = useMutation({
+  // Fetch a single page of reviews
+  const { isFetching: reviewsFetching, isError: reviewsError, data: latestReviewPage } = useQuery({
+    queryKey: ['product-reviews', id, reviewPage],
+    queryFn: ({ signal }) =>
+      apiGetPage<ProductReview[]>(
+        `/products/${id}/reviews?sort=latest&page=${reviewPage}&size=${REVIEW_PAGE_SIZE}`,
+        signal,
+      ),
+    enabled: Boolean(id),
+  })
+
+  // Track which page we last merged so we don't re-merge on re-renders
+  const mergedPageRef = useRef<number>(-1)
+  useEffect(() => {
+    if (!latestReviewPage || mergedPageRef.current === reviewPage) return
+    mergedPageRef.current = reviewPage
+    const incoming = latestReviewPage.data ?? []
+    setAccReviews((prev) => (reviewPage === 0 ? incoming : [...prev, ...incoming]))
+    setAccMeta(latestReviewPage.meta)
+  }, [latestReviewPage, reviewPage])
+
+  const { mutateAsync: addToCartAsync, isPending: addingToCart } = useMutation({
     mutationFn: addToCart,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cart'] })
@@ -52,42 +114,92 @@ export default function ProductDetail() {
     setTimeout(() => setToastMsg(null), 2500)
   }
 
-  const handleAddToCart = useCallback(() => {
+  // Returns true if the add-to-cart request(s) were dispatched successfully
+  const dispatchAddToCart = useCallback(async (): Promise<boolean> => {
     if (!getAccessToken()) {
       navigate('/login', { state: { from: `/products/${id}` }, replace: true })
-      return
+      return false
     }
-    if (!product) return
+    if (!product) return false
 
     if (product.options.length === 0) {
-      // No options: add the product itself with plainQty
-      // The backend requires productOptionId — when no options exist, productId is used
-      // We use productId cast as optionId (backend behaviour for single-SKU products)
-      addToCartMutate({ productOptionId: product.productId, quantity: plainQty })
-    } else {
-      if (selectedOptions.length === 0) {
-        showToast('옵션을 선택해주세요.')
-        return
+      try {
+        await addToCartAsync({ productOptionId: product.productId, quantity: plainQty })
+        return true
+      } catch {
+        return false
       }
-      selectedOptions.forEach((opt) => {
-        addToCartMutate({ productOptionId: opt.optionId, quantity: opt.quantity })
-      })
     }
-  }, [product, selectedOptions, plainQty, addToCartMutate, navigate, id])
 
-  const handleBuyNow = useCallback(() => {
+    if (selectedOptions.length === 0) {
+      showToast('옵션을 선택해주세요.')
+      return false
+    }
+
+    try {
+      // Add all selected options; await the last one so navigate waits for completion
+      for (const opt of selectedOptions) {
+        await addToCartAsync({ productOptionId: opt.optionId, quantity: opt.quantity })
+      }
+      return true
+    } catch {
+      return false
+    }
+  }, [product, selectedOptions, plainQty, addToCartAsync, navigate, id])
+
+  const handleAddToCart = useCallback(() => {
+    dispatchAddToCart()
+  }, [dispatchAddToCart])
+
+  // BUG FIX: await cart mutation before navigating to /cart
+  const handleBuyNow = useCallback(async () => {
+    const ok = await dispatchAddToCart()
+    if (ok) {
+      navigate('/cart')
+    }
+  }, [dispatchAddToCart, navigate])
+
+  // Wishlist toggle with optimistic UI + API persistence
+  const handleWishlistToggle = useCallback(async () => {
     if (!getAccessToken()) {
       navigate('/login', { state: { from: `/products/${id}` }, replace: true })
       return
     }
-    handleAddToCart()
-    navigate('/cart')
-  }, [handleAddToCart, navigate, id])
+    if (!product || wishlistPending) return
 
-  const totalSelectedPrice = selectedOptions.reduce(
-    (sum, opt) => sum + opt.optionPrice * opt.quantity,
-    0,
-  )
+    const nextWishlisted = !isWishlisted
+    setIsWishlisted(nextWishlisted)
+    setWishlistPending(true)
+
+    try {
+      if (nextWishlisted) {
+        await addWishlist(product.productId)
+      } else {
+        await removeWishlist(product.productId)
+      }
+    } catch {
+      // Revert optimistic update on failure
+      setIsWishlisted(!nextWishlisted)
+      showToast('찜 처리 중 오류가 발생했습니다.')
+    } finally {
+      setWishlistPending(false)
+    }
+  }, [product, isWishlisted, wishlistPending, navigate, id])
+
+  const handleLoadMoreReviews = () => {
+    setReviewPage((p) => p + 1)
+  }
+
+  // Price total: sum((salePrice + optionPrice) * qty) = salePrice * totalQty + sum(optionPrice * qty)
+  const totalSelectedQty = selectedOptions.reduce((s, o) => s + o.quantity, 0)
+  const totalOptionExtra = selectedOptions.reduce((s, o) => s + o.optionPrice * o.quantity, 0)
+  const totalSelectedPrice =
+    product ? product.salePrice * totalSelectedQty + totalOptionExtra : 0
+
+  const hasMoreReviews =
+    accMeta !== undefined
+      ? accReviews.length < accMeta.total
+      : false
 
   if (isLoading) {
     return (
@@ -207,10 +319,33 @@ export default function ProductDetail() {
               <div className={styles.totalRow}>
                 <span className={styles.totalLabel}>총 상품 금액</span>
                 <span className={styles.totalPrice}>
-                  {formatKrw(product.salePrice * selectedOptions.reduce((s, o) => s + o.quantity, 0) + totalSelectedPrice)}
+                  {formatKrw(totalSelectedPrice)}
                 </span>
               </div>
             )}
+
+            {/* Wishlist button */}
+            <button
+              type="button"
+              className={`${styles.wishlistBtn} ${isWishlisted ? styles.wishlistBtnActive : ''}`}
+              onClick={handleWishlistToggle}
+              disabled={wishlistPending}
+              aria-label={isWishlisted ? '찜 취소' : '찜하기'}
+              aria-pressed={isWishlisted}
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill={isWishlisted ? 'currentColor' : 'none'}
+                stroke="currentColor"
+                strokeWidth="2"
+                aria-hidden="true"
+              >
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+              </svg>
+              {isWishlisted ? '찜 취소' : '찜하기'}
+            </button>
 
             {/* Action buttons — desktop: inline; mobile: sticky bar */}
             <div className={styles.actionRow}>
@@ -221,7 +356,7 @@ export default function ProductDetail() {
                 disabled={addingToCart}
                 aria-busy={addingToCart}
               >
-                {addingToCart ? '담는 중…' : '장바구니 담기'}
+                {addingToCart ? '담는 중...' : '장바구니 담기'}
               </button>
               <button
                 type="button"
@@ -242,9 +377,72 @@ export default function ProductDetail() {
             <div className={styles.descBody}>{product.description}</div>
           </section>
         )}
+
+        {/* Reviews section */}
+        <section className={styles.reviewsSection} aria-label="상품 리뷰">
+          <div className={styles.reviewsHeader}>
+            <h2 className={styles.reviewsTitle}>리뷰</h2>
+            <div className={styles.reviewsSummary}>
+              <RatingStars rating={product.rating} size="md" />
+              <span className={styles.reviewsCount}>
+                {product.reviewCount.toLocaleString('ko-KR')}개 리뷰
+              </span>
+            </div>
+          </div>
+
+          {accReviews.length === 0 && !reviewsFetching && !reviewsError && (
+            <div className={styles.reviewsEmpty}>
+              <p>아직 등록된 리뷰가 없습니다.</p>
+              <p className={styles.reviewsEmptyHint}>첫 번째 리뷰를 작성해보세요.</p>
+            </div>
+          )}
+
+          {reviewsError && (
+            <p className={styles.reviewsErrorMsg} role="alert">
+              리뷰를 불러오지 못했습니다.
+            </p>
+          )}
+
+          {accReviews.length > 0 && (
+            <div className={styles.reviewsList}>
+              {accReviews.map((review) => (
+                <ReviewBlock
+                  key={review.id}
+                  reviewId={review.id}
+                  authorMaskedId={maskedAuthorId(review.id)}
+                  rating={review.rating}
+                  date={formatDate(review.createdAt)}
+                  body={review.body}
+                  photoUrls={review.imageUrls ?? []}
+                  helpfulCount={0}
+                />
+              ))}
+            </div>
+          )}
+
+          {hasMoreReviews && (
+            <button
+              type="button"
+              className={styles.loadMoreBtn}
+              onClick={handleLoadMoreReviews}
+              disabled={reviewsFetching}
+              aria-busy={reviewsFetching}
+            >
+              {reviewsFetching ? '불러오는 중...' : '리뷰 더 보기'}
+            </button>
+          )}
+
+          {reviewsFetching && accReviews.length === 0 && (
+            <div
+              className={styles.reviewsSkeleton}
+              aria-busy="true"
+              aria-label="리뷰 로딩 중"
+            />
+          )}
+        </section>
       </div>
 
-      {/* Mobile sticky buy bar */}
+      {/* Mobile sticky buy bar — z-index must exceed any bottom tab bar */}
       <div className={styles.stickyBar} aria-label="구매 버튼">
         <button
           type="button"

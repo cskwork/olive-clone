@@ -1,19 +1,29 @@
-import { Link, useLocation } from 'react-router-dom'
-import { getAccessToken, setAccessToken } from '@/lib/api'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { getAccessToken, setAccessToken, apiGet } from '@/lib/api'
+import { fetchCart } from '@/lib/cart'
 import styles from './Header.module.css'
 
-interface SubCategory {
+interface ApiCategory {
+  categoryId: number
+  categoryName: string
+  categorySlug: string
+  children?: ApiCategory[]
+}
+
+interface StaticSubCategory {
   label: string
   href: string
 }
 
-interface Category {
+interface StaticCategory {
   id: string
   label: string
-  subs: SubCategory[]
+  subs: StaticSubCategory[]
 }
 
-const CATEGORIES: Category[] = [
+const FALLBACK_CATEGORIES: StaticCategory[] = [
   {
     id: 'skincare',
     label: '스킨케어',
@@ -69,14 +79,103 @@ const CATEGORIES: Category[] = [
   },
 ]
 
+function mapApiCategories(apiCats: ApiCategory[]): StaticCategory[] {
+  return apiCats.map((cat) => ({
+    id: String(cat.categoryId),
+    label: cat.categoryName,
+    subs: (cat.children ?? []).map((sub) => ({
+      label: sub.categoryName,
+      href: `/category/${sub.categorySlug}`,
+    })),
+  }))
+}
+
 export default function Header() {
   const location = useLocation()
+  const navigate = useNavigate()
   const isLoggedIn = Boolean(getAccessToken())
+
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [searchValue, setSearchValue] = useState('')
+  const drawerRef = useRef<HTMLDivElement>(null)
+  const hamburgerRef = useRef<HTMLButtonElement>(null)
+
+  const { data: apiCategoriesData } = useQuery<ApiCategory[]>({
+    queryKey: ['categories'],
+    queryFn: ({ signal }) => apiGet<ApiCategory[]>('/categories', signal),
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const { data: cartData } = useQuery({
+    queryKey: ['cart-badge'],
+    queryFn: ({ signal }) => fetchCart(signal),
+    enabled: isLoggedIn,
+    staleTime: 60 * 1000,
+    retry: false,
+  })
+
+  const cartCount = isLoggedIn ? (cartData?.totalItemCount ?? 0) : 0
+
+  const categories =
+    apiCategoriesData && apiCategoriesData.length > 0
+      ? mapApiCategories(apiCategoriesData)
+      : FALLBACK_CATEGORIES
 
   const handleLogout = () => {
     setAccessToken(null)
     window.location.href = '/'
   }
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const keyword = searchValue.trim()
+    if (keyword) {
+      navigate(`/search?keyword=${encodeURIComponent(keyword)}`)
+      setDrawerOpen(false)
+    }
+  }
+
+  const closeDrawer = useCallback(() => {
+    setDrawerOpen(false)
+    hamburgerRef.current?.focus()
+  }, [])
+
+  // ESC closes drawer
+  useEffect(() => {
+    if (!drawerOpen) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeDrawer()
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [drawerOpen, closeDrawer])
+
+  // Prevent body scroll when drawer open
+  useEffect(() => {
+    if (drawerOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [drawerOpen])
+
+  // Focus first focusable element in drawer when opened
+  useEffect(() => {
+    if (drawerOpen && drawerRef.current) {
+      const first = drawerRef.current.querySelector<HTMLElement>(
+        'a, button, input, [tabindex]:not([tabindex="-1"])',
+      )
+      first?.focus()
+    }
+  }, [drawerOpen])
+
+  // Close drawer on route change
+  useEffect(() => {
+    setDrawerOpen(false)
+  }, [location.pathname])
 
   const isTab = (path: string) => location.pathname === path
 
@@ -96,13 +195,15 @@ export default function Header() {
               className={styles.searchForm}
               role="search"
               aria-label="상품 검색"
-              onSubmit={(e) => e.preventDefault()}
+              onSubmit={handleSearchSubmit}
             >
               <input
                 type="search"
                 className={styles.searchInput}
                 placeholder="브랜드, 상품, 성분을 검색해보세요"
                 aria-label="검색어 입력"
+                value={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
               />
               <button type="submit" className={styles.searchBtn} aria-label="검색">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -143,12 +244,19 @@ export default function Header() {
                 <span className={styles.iconBtnLabel}>로그인</span>
               </Link>
             )}
-            <Link to="/cart" className={styles.iconBtn} aria-label="장바구니">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <path d="M16 10a4 4 0 0 1-8 0" />
-              </svg>
+            <Link to="/cart" className={styles.iconBtn} aria-label={cartCount > 0 ? `장바구니 ${cartCount}개` : '장바구니'}>
+              <span className={styles.iconBtnInner}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <path d="M16 10a4 4 0 0 1-8 0" />
+                </svg>
+                {cartCount > 0 && (
+                  <span className={styles.cartBadge} aria-hidden="true">
+                    {cartCount > 99 ? '99+' : cartCount}
+                  </span>
+                )}
+              </span>
               <span className={styles.iconBtnLabel}>장바구니</span>
             </Link>
             <Link to="/wishlist" className={styles.iconBtn} aria-label="찜">
@@ -160,19 +268,34 @@ export default function Header() {
           </nav>
 
           {/* Hamburger — mobile */}
-          <button type="button" className={styles.hamburger} aria-label="메뉴 열기" aria-expanded="false">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="3" y1="18" x2="21" y2="18" />
-            </svg>
+          <button
+            ref={hamburgerRef}
+            type="button"
+            className={styles.hamburger}
+            aria-label={drawerOpen ? '메뉴 닫기' : '메뉴 열기'}
+            aria-expanded={drawerOpen}
+            aria-controls="mobile-drawer"
+            onClick={() => setDrawerOpen((prev) => !prev)}
+          >
+            {drawerOpen ? (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            ) : (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            )}
           </button>
         </div>
 
         {/* Category nav — desktop */}
         <nav className={styles.catNav} aria-label="카테고리 메뉴">
           <div className={styles.catNavInner}>
-            {CATEGORIES.map((cat) => (
+            {categories.map((cat) => (
               <div key={cat.id} className={styles.catItem}>
                 <Link to={`/category/${cat.id}`} className={styles.catLink}>
                   {cat.label}
@@ -197,6 +320,108 @@ export default function Header() {
         </nav>
       </header>
 
+      {/* Mobile drawer overlay */}
+      {drawerOpen && (
+        <div
+          className={styles.drawerOverlay}
+          aria-hidden="true"
+          onClick={closeDrawer}
+        />
+      )}
+
+      {/* Mobile drawer — always in DOM so CSS transition fires; aria-hidden when closed */}
+      <div
+        id="mobile-drawer"
+        ref={drawerRef}
+        className={`${styles.drawer} ${drawerOpen ? styles.drawerOpen : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="모바일 메뉴"
+        aria-hidden={!drawerOpen}
+      >
+        {/* Drawer header */}
+        <div className={styles.drawerHeader}>
+          <span className={styles.drawerTitle}>메뉴</span>
+          <button
+            type="button"
+            className={styles.drawerClose}
+            aria-label="메뉴 닫기"
+            onClick={closeDrawer}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Drawer search */}
+        <div className={styles.drawerSearch}>
+          <form
+            role="search"
+            aria-label="상품 검색"
+            onSubmit={handleSearchSubmit}
+            className={styles.drawerSearchForm}
+          >
+            <input
+              type="search"
+              className={styles.drawerSearchInput}
+              placeholder="검색어를 입력하세요"
+              aria-label="검색어 입력"
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+            />
+            <button type="submit" className={styles.drawerSearchBtn} aria-label="검색">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+            </button>
+          </form>
+        </div>
+
+        {/* Drawer categories */}
+        <nav className={styles.drawerNav} aria-label="카테고리">
+          <p className={styles.drawerSectionLabel}>카테고리</p>
+          {categories.map((cat) => (
+            <div key={cat.id} className={styles.drawerCatGroup}>
+              <Link to={`/category/${cat.id}`} className={styles.drawerCatLink}>
+                {cat.label}
+              </Link>
+              {cat.subs.length > 0 && (
+                <div className={styles.drawerSubList}>
+                  {cat.subs.map((sub) => (
+                    <Link key={sub.href} to={sub.href} className={styles.drawerSubLink}>
+                      {sub.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </nav>
+
+        {/* Drawer member links */}
+        <div className={styles.drawerMember}>
+          <p className={styles.drawerSectionLabel}>회원</p>
+          {isLoggedIn ? (
+            <>
+              <Link to="/mypage" className={styles.drawerMemberLink}>마이페이지</Link>
+              <Link to="/orders" className={styles.drawerMemberLink}>주문 내역</Link>
+              <Link to="/wishlist" className={styles.drawerMemberLink}>찜 목록</Link>
+              <button type="button" className={styles.drawerMemberLink} onClick={handleLogout}>
+                로그아웃
+              </button>
+            </>
+          ) : (
+            <>
+              <Link to="/login" className={styles.drawerMemberLink}>로그인</Link>
+              <Link to="/signup" className={styles.drawerMemberLink}>회원가입</Link>
+            </>
+          )}
+        </div>
+      </div>
+
       {/* Mobile bottom tab bar */}
       <nav className={styles.bottomTab} aria-label="하단 탭 메뉴">
         <Link to="/" className={`${styles.tabItem} ${isTab('/') ? styles.active : ''}`} aria-label="홈">
@@ -206,7 +431,7 @@ export default function Header() {
           </svg>
           <span className={styles.tabLabel}>홈</span>
         </Link>
-        <Link to="/categories" className={`${styles.tabItem} ${isTab('/categories') ? styles.active : ''}`} aria-label="카테고리">
+        <Link to="/category/skincare" className={`${styles.tabItem} ${location.pathname.startsWith('/category') ? styles.active : ''}`} aria-label="카테고리">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
             <rect x="3" y="3" width="7" height="7" rx="1" />
             <rect x="14" y="3" width="7" height="7" rx="1" />

@@ -12,11 +12,18 @@ function formatKrw(n: number): string {
 const SHIPPING_THRESHOLD = 30_000
 const SHIPPING_FEE = 3_000
 
+// Derives a consistent hue from a product name for the thumbnail background
+function nameHue(name: string): number {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) {
+    hash = (hash * 31 + name.charCodeAt(i)) & 0xffffffff
+  }
+  return Math.abs(hash) % 360
+}
+
 function ShippingFeeNote({ totalAmount }: { totalAmount: number }) {
   if (totalAmount >= SHIPPING_THRESHOLD) {
-    return (
-      <span className={styles.shippingFree}>무료배송</span>
-    )
+    return <span className={styles.shippingFree}>무료배송</span>
   }
   const remaining = SHIPPING_THRESHOLD - totalAmount
   return (
@@ -35,15 +42,21 @@ interface CartItemRowProps {
 
 function CartItemRow({ item, onUpdateQty, onRemove, isUpdating }: CartItemRowProps) {
   const maxQty = item.availableQuantity ?? 99
+  const hue = nameHue(item.productName)
+  const initial = item.productName.charAt(0)
 
   return (
-    <li className={styles.itemRow} aria-label={`${item.productName} ${item.optionName}`}>
-      {/* Thumbnail placeholder */}
-      <div className={styles.thumb} aria-hidden="true">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-          <rect width="24" height="24" rx="4" fill="var(--grey-200)" />
-          <path d="M8 16l3-4 2 3 2-2 3 3H8z" fill="var(--grey-300)" />
-        </svg>
+    <li className={styles.itemRow} aria-label={`${item.productName}${item.optionName ? ' ' + item.optionName : ''}`}>
+      {/* Thumbnail: colored initial avatar — API does not return thumbnailUrl on cart items */}
+      <div
+        className={styles.thumb}
+        aria-hidden="true"
+        style={{
+          background: `hsl(${hue} 55% 90%)`,
+          color: `hsl(${hue} 55% 35%)`,
+        }}
+      >
+        <span className={styles.thumbInitial}>{initial}</span>
       </div>
 
       <div className={styles.itemInfo}>
@@ -66,7 +79,11 @@ function CartItemRow({ item, onUpdateQty, onRemove, isUpdating }: CartItemRowPro
           >
             −
           </button>
-          <span className={styles.stepCount} aria-live="polite" aria-label={`수량 ${item.quantity}`}>
+          <span
+            className={styles.stepCount}
+            aria-live="polite"
+            aria-label={`수량 ${item.quantity}`}
+          >
             {item.quantity}
           </span>
           <button
@@ -90,7 +107,15 @@ function CartItemRow({ item, onUpdateQty, onRemove, isUpdating }: CartItemRowPro
           aria-label={`${item.productName} 삭제`}
           disabled={isUpdating}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            aria-hidden="true"
+          >
             <line x1="18" y1="6" x2="6" y2="18" />
             <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
@@ -175,12 +200,22 @@ export default function Cart() {
 
         {isEmpty ? (
           <div className={styles.empty}>
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--grey-300)" strokeWidth="1.5" aria-hidden="true">
-              <circle cx="9" cy="21" r="1" />
-              <circle cx="20" cy="21" r="1" />
-              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-            </svg>
-            <p className={styles.emptyText}>장바구니가 비어있습니다.</p>
+            <div className={styles.emptyIcon} aria-hidden="true">
+              <svg
+                width="56"
+                height="56"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--grey-300)"
+                strokeWidth="1.5"
+              >
+                <circle cx="9" cy="21" r="1" />
+                <circle cx="20" cy="21" r="1" />
+                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+              </svg>
+            </div>
+            <p className={styles.emptyTitle}>장바구니가 비어있어요</p>
+            <p className={styles.emptyText}>원하는 상품을 담아보세요.</p>
             <Link to="/" className={styles.emptyLink}>
               쇼핑 계속하기
             </Link>

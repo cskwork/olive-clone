@@ -1,7 +1,6 @@
 .card {
   display: block;
   border-radius: var(--radius-md);
-  overflow: hidden;
   background: var(--white);
   transition: box-shadow var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
   cursor: pointer;
@@ -11,11 +10,11 @@
 @media (hover: hover) {
   .card:hover {
     box-shadow: var(--shadow-hover);
-    transform: translateY(-2px);
+    transform: translateY(-3px);
   }
 }
 
-/* Image area */
+/* Image area — 1:1 aspect, no CLS */
 .imageWrap {
   position: relative;
   aspect-ratio: 1 / 1;
@@ -29,12 +28,12 @@
   height: 100%;
   object-fit: cover;
   display: block;
-  transition: transform var(--dur-base) var(--ease-out);
+  transition: transform 240ms var(--ease-out);
 }
 
 @media (hover: hover) {
   .card:hover .image {
-    transform: scale(1.04);
+    transform: scale(1.05);
   }
 }
 
@@ -45,10 +44,9 @@
   align-items: center;
   justify-content: center;
   color: var(--grey-300);
-  font-size: 32px;
 }
 
-/* Badges — top-left */
+/* Badges — top-left stack */
 .badges {
   position: absolute;
   top: var(--space-3);
@@ -61,12 +59,12 @@
 
 .badge {
   display: inline-block;
-  padding: 2px 5px;
+  padding: 2px 6px;
   border-radius: var(--radius-xs);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: var(--fw-bold);
-  line-height: 1.4;
-  letter-spacing: 0;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
 }
 
 .badgeBest {
@@ -85,32 +83,33 @@
   top: var(--space-3);
   right: var(--space-3);
   z-index: 1;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(4px);
-  transition: background var(--dur-fast) var(--ease-out);
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
   color: var(--grey-300);
-  font-size: 16px;
-  cursor: pointer;
+  min-width: 34px;
 }
 
 .wishlistBtn:hover {
   background: var(--white);
   color: var(--sale-red);
+  transform: scale(1.1);
 }
 
 .wishlistBtn.wished {
   color: var(--sale-red);
+  background: var(--white);
 }
 
 /* Info block */
 .info {
-  padding: var(--space-3) var(--space-2) var(--space-2);
+  padding: var(--space-3) var(--space-1) var(--space-3);
 }
 
 .brand {
@@ -127,7 +126,7 @@
   font-size: 13px;
   font-weight: var(--fw-medium);
   color: var(--ink-700);
-  line-height: 1.4;
+  line-height: 1.45;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;

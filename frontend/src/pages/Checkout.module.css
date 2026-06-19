@@ -350,6 +350,154 @@
   line-height: 1.5;
 }
 
+.noDiscount {
+  color: var(--grey-500);
+}
+
+.discountAmount {
+  color: var(--sale-red);
+  font-weight: var(--fw-semibold);
+}
+
+/* Coupon picker */
+.couponToggleBtn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 44px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--grey-300);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  color: var(--ink-700);
+  background: var(--white);
+  transition: border-color var(--dur-fast);
+  gap: var(--space-3);
+}
+
+.couponToggleBtn:hover {
+  border-color: var(--brand-green);
+}
+
+.chevronUp {
+  transform: rotate(180deg);
+}
+
+.couponList {
+  margin-top: var(--space-3);
+  border: 1px solid var(--grey-200);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.couponOption {
+  width: 100%;
+  padding: var(--space-4) var(--space-5);
+  text-align: left;
+  font-size: 13px;
+  color: var(--ink-700);
+  background: var(--white);
+  border-bottom: 1px solid var(--grey-200);
+  transition: background var(--dur-fast);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.couponOption:last-child {
+  border-bottom: none;
+}
+
+.couponOption:hover:not(:disabled) {
+  background: var(--grey-100);
+}
+
+.couponOptionSelected {
+  background: var(--brand-green-tint);
+}
+
+.couponOptionDisabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.couponOptionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.couponDiscount {
+  font-size: 14px;
+  font-weight: var(--fw-semibold);
+  color: var(--sale-red);
+  flex-shrink: 0;
+}
+
+.couponMinNote {
+  font-size: 11px;
+  color: var(--grey-500);
+}
+
+/* Point input */
+.pointBalance {
+  font-size: 13px;
+  color: var(--grey-500);
+  margin-bottom: var(--space-3);
+}
+
+.pointBalance strong {
+  color: var(--ink-900);
+}
+
+.pointInputRow {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.pointInput {
+  flex: 1;
+}
+
+.inputError {
+  border-color: var(--sale-red);
+}
+
+.pointAllBtn {
+  height: 44px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--grey-300);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--ink-700);
+  background: var(--white);
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: border-color var(--dur-fast), background var(--dur-fast);
+}
+
+.pointAllBtn:hover:not(:disabled) {
+  border-color: var(--brand-green);
+  background: var(--brand-green-tint);
+}
+
+.pointAllBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pointApplied {
+  font-size: 12px;
+  color: var(--brand-green-dark);
+  margin-top: var(--space-2);
+  font-weight: var(--fw-medium);
+}
+
 /* Skeleton */
 .skeleton {
   height: 500px;
