@@ -1,13 +1,13 @@
 .footer {
   background: var(--grey-100);
   border-top: 1px solid var(--grey-200);
-  padding: var(--space-10) var(--space-5) calc(var(--space-10) + 56px);
   /* extra bottom padding to clear mobile bottom tab bar */
+  padding: var(--space-10) var(--space-5) calc(var(--space-10) + 56px);
 }
 
 @media (min-width: 768px) {
   .footer {
-    padding-bottom: var(--space-10);
+    padding: var(--space-10) var(--space-8);
   }
 }
 
@@ -61,6 +61,9 @@
   color: var(--grey-500);
   line-height: 1.5;
   transition: color var(--dur-fast) var(--ease-out);
+  min-height: 28px;
+  display: flex;
+  align-items: center;
 }
 
 .colLink:hover {
@@ -84,7 +87,7 @@
 .info {
   font-size: 11px;
   color: var(--grey-500);
-  line-height: 1.7;
+  line-height: 1.8;
 }
 
 .copyright {

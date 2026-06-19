@@ -87,3 +87,10 @@ run-to-prove: `cd frontend && npm run build` (tsc --noEmit && vite build)
 expected: 빌드 성공(136 modules), 신규 라우트 해석, 플레이스홀더 렌더
 risks(committee): 동시 401 burst 시 다중 refresh(MVP 허용), CartMergeResponse 필드 추정, refresh 루프가드
 
+## CLAIM FE-B (4 병렬 designer, 기능완성+superdesign 리디자인)
+what: B1(Search: autocomplete/popular/결과그리드/정렬/load-more; ProductList /category/:id), B2(MyPage 요약허브, OrderHistory 상태탭/페이지, Wishlist 그리드/낙관적 remove — useRequireAuth), B3(Header 검색동작→/search·모바일 드로어·라이브 메가메뉴·장바구니 뱃지; Footer 실링크; Home 히어로+3레일(추천/랭킹/베스트); ProductCard/RatingStars/PriceDisplay 시각 격상-prop 불변), B4(ProductDetail: buyNow 레이스 fix(mutateAsync await)·옵션가 총액 검증·위시리스트 API 영속·리뷰 섹션(ReviewBlock 연결); Checkout: 쿠폰 picker+포인트 입력→주문에 couponId/usePointAmount 전송; Cart: 썸네일/빈상태 polish). 모든 데이터뷰 skeleton/empty/error, a11y(44px/aria/focus-visible), prefers-reduced-motion, 토큰 역할고정(green=brand/red=price).
+files: pages/{Search,ProductList,MyPage,OrderHistory,Wishlist,Home,ProductDetail,Checkout,Cart}.tsx(+css), components/{layout/Header,layout/Footer,ProductCard,RatingStars,PriceDisplay,ReviewBlock,ImageCarousel,QuantityOptionSelector,CouponChip,FilterBar}/*
+run-to-prove: `cd frontend && npm run build`
+expected: tsc --noEmit + vite build 성공(139 modules) — conductor GREEN
+risks(committee/QA): 리뷰/쿠폰 엔드포인트 shape 추정(런타임 확인 필요), cart 응답에 thumbnailUrl 없어 이니셜 아바타, 쿠폰 할인 미리보기는 클라계산(서버 권위), 동시 401 refresh.
+

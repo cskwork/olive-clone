@@ -65,6 +65,14 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  font-size: 22px;
+  font-weight: var(--fw-bold);
+  letter-spacing: -0.02em;
+  user-select: none;
+}
+
+.thumbInitial {
+  line-height: 1;
 }
 
 .itemInfo {
@@ -258,13 +266,23 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-5);
+  gap: var(--space-4);
   padding: var(--space-12) var(--space-5);
   text-align: center;
 }
 
+.emptyIcon {
+  margin-bottom: var(--space-2);
+}
+
+.emptyTitle {
+  font-size: 17px;
+  font-weight: var(--fw-semibold);
+  color: var(--ink-700);
+}
+
 .emptyText {
-  font-size: 16px;
+  font-size: 14px;
   color: var(--grey-500);
 }
 
@@ -279,6 +297,7 @@
   font-weight: var(--fw-semibold);
   color: var(--brand-green);
   transition: background var(--dur-base);
+  margin-top: var(--space-2);
 }
 
 .emptyLink:hover {
