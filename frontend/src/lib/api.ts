@@ -20,6 +20,9 @@ interface RequestOptions {
   signal?: AbortSignal
 }
 
+// Guard flag: prevents the refresh call itself from triggering another refresh.
+let isRefreshing = false
+
 async function request<T>(path: string, opts: RequestOptions = {}): Promise<ApiResponse<T>> {
   const token = getAccessToken()
   const res = await fetch(`${BASE}${path}`, {
@@ -33,6 +36,39 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<ApiR
     signal: opts.signal,
   })
 
+  // On 401: attempt ONE token refresh, then retry the original request once.
+  if (res.status === 401 && !isRefreshing) {
+    const refreshed = await attemptRefresh()
+    if (refreshed) {
+      const newToken = getAccessToken()
+      const retryRes = await fetch(`${BASE}${path}`, {
+        method: opts.method ?? 'GET',
+        headers: {
+          Accept: 'application/json',
+          ...(opts.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+          ...(newToken ? { Authorization: `Bearer ${newToken}` } : {}),
+        },
+        body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+        signal: opts.signal,
+      })
+
+      let retryEnvelope: ApiResponse<T> | null = null
+      try {
+        retryEnvelope = (await retryRes.json()) as ApiResponse<T>
+      } catch {
+        // non-JSON body
+      }
+
+      if (!retryRes.ok || !retryEnvelope?.success) {
+        const err = retryEnvelope?.error
+        throw new ApiError(err?.message ?? `요청 실패 (${retryRes.status})`, retryRes.status, err?.code)
+      }
+      return retryEnvelope
+    }
+    // Refresh failed — tokens already cleared in attemptRefresh; let UI redirect.
+    throw new ApiError('인증이 만료되었습니다. 다시 로그인해주세요.', 401)
+  }
+
   let envelope: ApiResponse<T> | null = null
   try {
     envelope = (await res.json()) as ApiResponse<T>
@@ -45,6 +81,45 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<ApiR
     throw new ApiError(err?.message ?? `요청 실패 (${res.status})`, res.status, err?.code)
   }
   return envelope
+}
+
+/** Attempts a token refresh. Returns true on success, false on failure. */
+async function attemptRefresh(): Promise<boolean> {
+  const refreshToken = getRefreshToken()
+  if (!refreshToken) return false
+
+  isRefreshing = true
+  try {
+    const res = await fetch(`${BASE}/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ refreshToken }),
+    })
+
+    if (!res.ok) {
+      clearTokens()
+      return false
+    }
+
+    type RefreshPayload = { accessToken: string; refreshToken: string; expiresInSec: number }
+    const envelope = (await res.json()) as ApiResponse<RefreshPayload>
+    if (!envelope.success || !envelope.data) {
+      clearTokens()
+      return false
+    }
+
+    setAccessToken(envelope.data.accessToken)
+    setRefreshToken(envelope.data.refreshToken)
+    return true
+  } catch {
+    clearTokens()
+    return false
+  } finally {
+    isRefreshing = false
+  }
 }
 
 /** Returns the data payload, throwing ApiError on failure. */
@@ -111,6 +186,8 @@ export async function apiPostWithHeaders<T>(
 
 // --- Auth token storage (in-memory + localStorage mirror) -------------------
 const ACCESS_TOKEN_KEY = 'olive.accessToken'
+const REFRESH_TOKEN_KEY = 'olive.refreshToken'
+
 let accessToken: string | null = null
 
 export function getAccessToken(): string | null {
@@ -123,4 +200,19 @@ export function setAccessToken(token: string | null): void {
   accessToken = token
   if (token) localStorage.setItem(ACCESS_TOKEN_KEY, token)
   else localStorage.removeItem(ACCESS_TOKEN_KEY)
+}
+
+export function getRefreshToken(): string | null {
+  return localStorage.getItem(REFRESH_TOKEN_KEY)
+}
+
+export function setRefreshToken(token: string | null): void {
+  if (token) localStorage.setItem(REFRESH_TOKEN_KEY, token)
+  else localStorage.removeItem(REFRESH_TOKEN_KEY)
+}
+
+/** Clears both access and refresh tokens (used on logout or auth failure). */
+export function clearTokens(): void {
+  setAccessToken(null)
+  setRefreshToken(null)
 }
