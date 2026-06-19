@@ -1,8 +1,21 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { apiPost, setAccessToken, ApiError } from '@/lib/api'
+import { apiPost, setAccessToken, setRefreshToken, ApiError } from '@/lib/api'
+import { mergeAnonymousCart } from '@/lib/cart'
 import type { LoginRequest, LoginResponse } from '@/lib/types'
 import styles from './auth.module.css'
+
+/** Key used by the anonymous cart session on this device. */
+const ANON_SESSION_KEY = 'olive.sessionId'
+
+function getOrCreateSessionId(): string {
+  let id = localStorage.getItem(ANON_SESSION_KEY)
+  if (!id) {
+    id = crypto.randomUUID()
+    localStorage.setItem(ANON_SESSION_KEY, id)
+  }
+  return id
+}
 
 interface FormErrors {
   email?: string
@@ -43,6 +56,15 @@ export default function Login() {
         password,
       } satisfies LoginRequest)
       setAccessToken(res.accessToken)
+      setRefreshToken(res.refreshToken)
+
+      // Merge any anonymous cart items into the member cart. Fire-and-forget:
+      // a merge failure should not block the user from navigating home.
+      const sessionId = getOrCreateSessionId()
+      mergeAnonymousCart(sessionId).catch(() => {
+        // Merge failure is non-fatal — the user still logged in successfully.
+      })
+
       navigate('/')
     } catch (err) {
       if (err instanceof ApiError) {

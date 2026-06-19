@@ -95,3 +95,12 @@
 
 ### M3 — 신규 백엔드 기능 (IN PROGRESS)
 - 2 병렬 빌더: M3-A(Wishlist 모듈+V19+tests), M3-B(/api/me/summary 보강 + /api/categories|brands/{id}/products + SecurityConfig 2 permits).
+- conductor smoke: 5 클래스 GREEN(2m32s). **commit 418e041**. (C2 /api/me/summary는 이미 존재 — 검증만)
+
+### M6 — 구조 전면 개편 (DONE, behavior-preserving)
+- 단일 드라이버(opus) 리팩터: OrderService 1009→facade+3서비스. 죽은 중복 delivery 클라이언트 2 + order/MemberAddress 스텁 git rm.
+- conductor smoke: order/payment/delivery/inventory/e2e 전체 GREEN(3m). **commit 대기**.
+
+### M4/M5 — 프론트엔드 완성 + superdesign 리디자인 (IN PROGRESS)
+- FE-A(기반): 세션/리프레시, cart merge, lib 클라이언트, Pretendard, 토큰/스켈레톤/reduced-motion, 라우트+404, 플레이스홀더 6페이지. conductor 수정: @types/node(기존 빌드 breakage 해소). `npm run build` GREEN. **commit 대기**.
+- 다음: FE-B 페이지별 병렬(Search/List, MyPage/Orders/Wishlist, Header/Home, PDP/Checkout) — 기능+비주얼 동시.

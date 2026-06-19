@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPostWithHeaders } from './api'
+import { apiGet, apiGetPage, apiPost, apiPostWithHeaders } from './api'
 import type {
   AddressResponse,
   CreateAddressRequest,
@@ -7,6 +7,8 @@ import type {
   ConfirmPaymentRequest,
   ConfirmPaymentResponse,
   OrderDetail,
+  MyOrderListItem,
+  PageMeta,
 } from './types'
 
 // --- Addresses ----------------------------------------------------------------
@@ -44,4 +46,16 @@ export function confirmPayment(
 /** GET /api/orders/:orderNo — order detail. */
 export function fetchOrderDetail(orderNo: string, signal?: AbortSignal): Promise<OrderDetail> {
   return apiGet<OrderDetail>(`/orders/${orderNo}`, signal)
+}
+
+/** GET /api/orders?status=&page=&size= — paginated order list for the current member. */
+export function listMyOrders(
+  params: { status?: string; page?: number; size?: number },
+  signal?: AbortSignal,
+): Promise<{ data: MyOrderListItem[]; meta: PageMeta | undefined }> {
+  const qs = new URLSearchParams()
+  if (params.status) qs.set('status', params.status)
+  qs.set('page', String(params.page ?? 0))
+  qs.set('size', String(params.size ?? 10))
+  return apiGetPage<MyOrderListItem[]>(`/orders?${qs.toString()}`, signal)
 }

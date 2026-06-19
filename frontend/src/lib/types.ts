@@ -215,6 +215,72 @@ export interface OrderDetail {
   createdAt: string
 }
 
+// --- Cart merge (POST /api/cart/merge) -----------------------------------------
+
+export interface CartMergeResponse {
+  mergedItemCount: number
+}
+
+// --- Search (GET /api/search/*) ------------------------------------------------
+
+/** Sort options supported by the search endpoint (maps to SearchDtos.SortOption). */
+export type SearchSortOption = 'RELEVANCE' | 'POPULAR' | 'LATEST' | 'PRICE_ASC' | 'PRICE_DESC' | 'RATING'
+
+export interface SearchProductsParams {
+  keyword?: string
+  categoryId?: number
+  brandId?: number
+  sort?: SearchSortOption
+  page?: number
+  size?: number
+}
+
+export interface AutocompleteResponse {
+  suggestions: string[]
+}
+
+export interface PopularKeyword {
+  keyword: string
+  rank: number
+}
+
+export interface PopularResponse {
+  keywords: PopularKeyword[]
+}
+
+// --- Wishlist (GET/POST/DELETE /api/me/wishlist) --------------------------------
+
+export interface WishlistItem {
+  wishlistId: number
+  productId: number
+  productName: string
+  brandName: string | null
+  thumbnailUrl: string | null
+  salePrice: number
+  originalPrice: number
+  discountRate: number
+}
+
+// --- MyPage summary (GET /api/me/summary) --------------------------------------
+
+export interface MySummary {
+  pointBalance: number
+  usableCouponCount: number
+  totalOrderCount: number
+  gradeName: string
+}
+
+// --- Order list (GET /api/orders) ----------------------------------------------
+
+export interface MyOrderListItem {
+  id: number
+  orderNo: string
+  status: string
+  totalProductAmount: number
+  finalPaymentAmount: number
+  createdAt: string
+}
+
 // -------------------------------------------------------------------------------
 
 export interface ProductDetail {

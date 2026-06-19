@@ -71,3 +71,19 @@ run-to-prove: `JAVA_HOME=/c/Users/a/.jdks/temurin-21/jdk-21.0.11+10 ./gradlew te
 expected: 카테고리/브랜드 하위리소스 목록·페이지·404·무인증 + 마이페이지요약 — 그린
 risks(committee): permit 순서(catch-all 앞), 캐시 stale, N+1(기존 list 재사용이라 신규 없음)
 
+---
+
+## CLAIM M6-order-refactor (behavior-preserving)
+what: OrderService(1009 LOC) → facade + OrderCreationService(8-step 생성)/OrderCancellationService(취소+M1 보상 verbatim)/OrderQueryService(목록/상세/admin상태). public API·@Transactional 경계·이벤트 발행 불변(코드 이동만). 죽은 중복 제거: delivery/CarrierClient.java, delivery/MockCarrierClient.java(루트), order/MemberAddress.java(스텁) — grep 근거로 미참조 확인 후 git rm.
+files: order/OrderService.java(facade), order/OrderCreationService.java(new), order/OrderCancellationService.java(new), order/OrderQueryService.java(new); deleted delivery/CarrierClient.java, delivery/MockCarrierClient.java, order/MemberAddress.java
+run-to-prove: `JAVA_HOME=/c/Users/a/.jdks/temurin-21/jdk-21.0.11+10 ./gradlew test --tests 'com.olive.commerce.order.*' --tests 'com.olive.commerce.payment.*' --tests 'com.olive.commerce.delivery.*' --tests 'com.olive.commerce.inventory.*' --tests 'com.olive.commerce.e2e.PurchaseFlowE2ETest'`
+expected: 전 order/payment/delivery/inventory/e2e 그린(동작 보존) — conductor smoke GREEN(3m)
+risks(committee): 트랜잭션 propagation(facade 미주석, 경계는 delegate), M1 취소-보상 순서, 이벤트 source 타입 변경(OrderCancellationService) 리스너 영향 없음 확인
+
+## CLAIM FE-A-foundation (frontend)
+what: 세션/리프레시 — api.ts에 refreshToken 저장 + 401 시 POST /api/auth/refresh 1회 재시도(isRefreshing 루프가드)+토큰 클리어. cart.ts mergeAnonymousCart, Login에서 로그인 후 호출. 신규 lib: search.ts/wishlist.ts/mypage.ts + orders.listMyOrders + types 보강. index.html Pretendard CDN. base.css: skeleton-shimmer 공통화, .empty-state/.error-state, prefers-reduced-motion. App.tsx: /search,/category/:id,/mypage,/orders,/wishlist 라우트 + 실제 NotFound 404, /dev는 import.meta.env.DEV 가드. 플레이스홀더 6페이지(Search/ProductList/MyPage/OrderHistory/Wishlist/NotFound).
+files: frontend/src/lib/{api,cart,orders,types,search(new),wishlist(new),mypage(new)}.ts, index.html, styles/base.css, App.tsx, pages/auth/Login.tsx, pages/{Search,ProductList,MyPage,OrderHistory,Wishlist,NotFound}.tsx(+css); [conductor 수정] package.json @types/node 추가 — 기존 `tsc --noEmit` node:url 실패(빌드 breakage) 해소
+run-to-prove: `cd frontend && npm run build` (tsc --noEmit && vite build)
+expected: 빌드 성공(136 modules), 신규 라우트 해석, 플레이스홀더 렌더
+risks(committee): 동시 401 burst 시 다중 refresh(MVP 허용), CartMergeResponse 필드 추정, refresh 루프가드
+

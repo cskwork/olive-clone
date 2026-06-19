@@ -4,6 +4,7 @@ import type {
   AddToCartRequest,
   AddToCartResponse,
   UpdateCartQuantityRequest,
+  CartMergeResponse,
 } from './types'
 
 export function fetchCart(signal?: AbortSignal): Promise<CartResponse> {
@@ -25,4 +26,13 @@ export function removeCartItem(cartItemId: number): Promise<null> {
   return apiDelete<null>(`/cart/items/${cartItemId}`)
 }
 
-// TODO: anonymous cart + merge
+/**
+ * Merges the anonymous (session-based) cart into the authenticated member cart.
+ * Call this after a successful login. The sessionId should match what was sent
+ * in X-Session-ID headers during anonymous browsing.
+ *
+ * POST /api/cart/merge { sessionId }
+ */
+export function mergeAnonymousCart(sessionId: string): Promise<CartMergeResponse> {
+  return apiPost<CartMergeResponse>('/cart/merge', { sessionId })
+}
