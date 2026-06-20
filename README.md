@@ -1,9 +1,10 @@
-# Health & Beauty Commerce Backend
+# Health & Beauty Commerce
 
-Production-style shopping mall backend inspired by health and beauty commerce
-workflows. The project demonstrates the backend architecture behind a modern
-catalog, order, payment, inventory, delivery, review, search, and operations
-stack.
+Production-style shopping mall built around health and beauty commerce
+workflows: a Spring Boot modular-monolith backend paired with a React storefront
+SPA. The project demonstrates the architecture behind a modern catalog, cart,
+order, payment, inventory, delivery, review, search, and operations stack, plus
+the customer-facing storefront that drives it.
 
 This is an educational portfolio project. It is not affiliated with, endorsed by,
 or connected to any retailer or beauty brand. Demo catalog data and product
@@ -13,7 +14,19 @@ images are for local development and portfolio presentation only.
 
 ## What This Shows
 
-- Public catalog API and a Thymeleaf smoke UI at `/products`
+Storefront (React SPA at `/app`):
+
+- Anonymous browse to checkout: catalog, product detail, cart, login with
+  anonymous-cart merge, order creation, mock payment, and order complete
+- Wishlist, my page (points, coupons, order summary), order history, and search
+  with filters
+- Single-flight token refresh so an expired session recovers instead of silently
+  logging out
+
+Backend (Spring Boot modular monolith):
+
+- Public catalog API, OpenAPI 3 contract / Swagger UI, and a Thymeleaf smoke
+  console at `/products`
 - Product, brand, category, option, image, and inventory domain modeling
 - Member signup/login with JWT access and refresh tokens
 - Cart, order creation, cancellation, payment confirmation, refunds, and mock PG
@@ -23,6 +36,7 @@ images are for local development and portfolio presentation only.
 - OpenSearch product indexing, public search, autocomplete, and popular keywords
 - Outbox-based async indexing and failure retry behavior
 - Batch jobs, job admin endpoints, sales summary tables, and scheduler locking
+- Token-bucket rate limiting on public auth, catalog, and search endpoints
 - Actuator health groups, Prometheus metrics, Grafana dashboard provisioning, and
   k6 load-test scripts
 - Testcontainers-backed integration tests across Postgres, Redis, LocalStack S3,
@@ -30,17 +44,20 @@ images are for local development and portfolio presentation only.
 
 ## Tech Stack
 
-This repository is intentionally built as a backend-heavy commerce system, not a
-static mock. The local Thymeleaf UI calls the same product API that an external
-frontend would call, while the backend keeps realistic infrastructure boundaries
-for data, cache, search, files, observability, and async work.
+This repository pairs a backend-heavy commerce system with a real storefront SPA,
+not a static mock. The React storefront and the legacy Thymeleaf console both call
+the same public product API, while the backend keeps realistic infrastructure
+boundaries for data, cache, search, files, observability, and async work.
 
 | Layer | What is used | How it is used in this project |
 | --- | --- | --- |
 | Language and build | Java 21, Gradle Kotlin DSL, Spring Boot Gradle plugin | Java 21 is the runtime baseline; Gradle wrapper builds, tests, and runs custom boot tasks such as `reindexProducts`. |
 | Application framework | Spring Boot 3.3, Spring MVC, Bean Validation | REST controllers, request validation, service wiring, configuration properties, and local command-style tasks. |
+| Storefront SPA | React 18, Vite 5, TypeScript, React Router 6, TanStack Query 5 | The customer storefront served at `/app`: browse, cart, anonymous-cart merge on login, checkout, order tracking, wishlist, my page, and search. Vite builds it into `static/app`, and the boot jar packages it for self-contained runs. |
 | Server-side UI | Thymeleaf, static CSS/JS | `/products` is a smoke catalog console that loads data from `/api/products` and renders seeded product images. |
+| API documentation | springdoc-openapi, Swagger UI | OpenAPI 3 contract the storefront SPA consumes; browsable at `/swagger-ui.html` with JSON at `/v3/api-docs`. |
 | Security | Spring Security, OAuth2 Resource Server, Nimbus JOSE JWT | JWT-protected member/admin APIs with local RS256 signing keys for development. |
+| Edge protection | Bucket4j | Token-bucket rate limiting on public auth, catalog, and search endpoints. |
 | Database | PostgreSQL 16 | Source of truth for products, members, carts, orders, payments, inventory, delivery, reviews, promotions, batch runs, and outbox rows. |
 | Migrations | Flyway 10 | Versioned schema and seed migrations, including the 13-product demo catalog and local image URL migration. |
 | ORM and repositories | Spring Data JPA, Hibernate | Domain repositories and entity mapping for the modular monolith. |
@@ -61,6 +78,7 @@ Prerequisites:
 
 - Docker Desktop or a Docker-compatible runtime
 - JDK 21. The Gradle wrapper is included, so no system Gradle install is needed.
+- Node.js 20+ and npm. `bootRun` and `bootJar` build the storefront SPA via Vite.
 - OpenSSL for generating local JWT signing keys
 
 Generate local development JWT keys. These files are intentionally ignored by
@@ -86,7 +104,9 @@ Run the app.
 
 Open the demo:
 
-- UI: http://localhost:8080/products
+- Storefront SPA: http://localhost:8080/app
+- API docs (Swagger UI): http://localhost:8080/swagger-ui.html
+- Thymeleaf catalog console: http://localhost:8080/products
 - Product API: http://localhost:8080/api/products?size=20
 - Search API: http://localhost:8080/api/search/products?keyword=%EC%84%A0%ED%81%AC%EB%A6%BC&page=0&size=5
 - Health: http://localhost:8080/actuator/health
@@ -98,6 +118,27 @@ Populate OpenSearch after the app and OpenSearch are running:
 
 ```bash
 ./gradlew reindexProducts --args='--spring.profiles.active=local,reindex --server.port=8082'
+```
+
+## Storefront SPA
+
+The React storefront lives in `frontend/` and is served by Spring Boot at `/app`.
+`./gradlew bootRun` and `./gradlew bootJar` build it automatically (Vite output
+goes to `src/main/resources/static/app`), so the packaged jar is self-contained.
+
+For frontend iteration, run the Vite dev server with hot reload. It proxies
+`/api` to the backend on `:8080`:
+
+```bash
+cd frontend
+npm install
+npm run dev      # http://localhost:5173/app
+```
+
+Type-check the storefront without emitting a build:
+
+```bash
+npm run typecheck
 ```
 
 ## Local Demo Data
