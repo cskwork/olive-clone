@@ -26,6 +26,15 @@ public class RateLimitProperties {
     /** Whether the rate limiter is active. Disable in application-test.yml. */
     private boolean enabled = true;
 
+    /**
+     * Forces the rate limiter active even in the {@code test} Spring profile.
+     *
+     * <p>Default: {@code false} — the test profile bypass still applies, so the general
+     * test suite is not throttled. Set to {@code true} in {@code @TestPropertySource} for
+     * integration tests that specifically verify rate-limit enforcement (AC4).
+     */
+    private boolean forceActive = false;
+
     private Auth auth = new Auth();
     private Browse browse = new Browse();
 
@@ -35,6 +44,14 @@ public class RateLimitProperties {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public boolean isForceActive() {
+        return forceActive;
+    }
+
+    public void setForceActive(boolean forceActive) {
+        this.forceActive = forceActive;
     }
 
     public Auth getAuth() {

@@ -223,15 +223,22 @@ class PointServiceTest {
     @Test
     @DisplayName("AC4: 모든 연산 후 balance와 재계산 값이 일치")
     void allOperations_balanceMatchesRecompute() {
+        // USE/CANCEL은 서비스 내부에서 실제 wall-clock(now())으로 stamp되므로,
+        // EARN 시나리오도 동일한 실제 현재 시각을 기준으로 잡아야 모든 행이 같은 시간축에 놓인다.
+        // (고정된 과거 NOW=2026-05-11을 쓰면 미래 EARN(NOW+30)이 달력이 지나면서 잔액에 섞여
+        //  3000으로 깨지는 시한폭탄 테스트가 된다.)
+        OffsetDateTime base = OffsetDateTime.now(ZoneOffset.UTC);
+
         // When: 복합 연산
-        pointService.earnScheduled(MEMBER_1_ID, new BigDecimal("3000"), 1L, NOW, NOW.plusDays(180));
+        pointService.earnScheduled(MEMBER_1_ID, new BigDecimal("3000"), 1L, base, base.plusDays(180));
         pointService.use(MEMBER_1_ID, new BigDecimal("500"), 2L);
-        pointService.earnScheduled(MEMBER_1_ID, new BigDecimal("1000"), 3L, NOW.plusDays(30), NOW.plusDays(180));
+        pointService.earnScheduled(MEMBER_1_ID, new BigDecimal("1000"), 3L, base.plusDays(30), base.plusDays(180));
         pointService.use(MEMBER_1_ID, new BigDecimal("1000"), 4L);
         pointService.cancel(MEMBER_1_ID, 2L);
 
-        // Then: 재계산 값 확인
-        // EARN: 3000 (NOW에 사용 가능)
+        // Then: 재계산 값 확인 (현재 시점 기준 = base 직후)
+        // EARN: 3000 (base에 사용 가능)
+        // EARN: 1000 (base+30, 미래 → 제외)
         // USE: 500 + 1000 = 1500 (현재 시간에 생성)
         // CANCEL: 500 (USE 500 취소, 현재 시간에 생성)
         // 총액: 3000 - 1500 + 500 = 2000

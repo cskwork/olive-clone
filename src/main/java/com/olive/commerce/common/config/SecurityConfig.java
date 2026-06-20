@@ -140,6 +140,12 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/categories/*/products").permitAll()
                 .requestMatchers("/api/admin/**")
                     .hasAnyRole("CS_MANAGER", "PRODUCT_ADMIN", "ORDER_ADMIN", "SUPER_ADMIN")
+                // Explicit rules for specific sub-paths must precede the /api/** catch-all.
+                // Without these, the catch-all USER rule would silently permit _test endpoints
+                // for any authenticated user (method @PreAuthorize alone is insufficient when
+                // the catch-all grants access before reaching the controller).
+                .requestMatchers("/api/_test/**").hasRole("SUPER_ADMIN")
+                .requestMatchers("/api/me/**").hasRole("USER")
                 .requestMatchers("/api/cart/anonymous/**").permitAll()
                 .requestMatchers("/api/**").hasRole("USER")
                 .anyRequest().authenticated()

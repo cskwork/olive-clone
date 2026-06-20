@@ -4,6 +4,7 @@ import com.olive.commerce.common.error.BusinessException;
 import com.olive.commerce.common.error.ErrorCode;
 import com.olive.commerce.product.ProductRepository;
 import jakarta.persistence.EntityManager;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -54,12 +55,18 @@ public class WishlistService {
                 "Product not found: " + productId);
         }
 
-        // 이미 찜한 경우 no-op
+        // 이미 찜한 경우 no-op (선행 존재 확인)
         if (wishlistItemRepository.existsByMemberIdAndProductId(memberId, productId)) {
             return;
         }
 
-        wishlistItemRepository.save(WishlistItem.create(memberId, productId));
+        try {
+            wishlistItemRepository.save(WishlistItem.create(memberId, productId));
+        } catch (DataIntegrityViolationException e) {
+            // Concurrent duplicate: two threads passed the existsBy check simultaneously and
+            // both attempted insert. The DB UNIQUE(member_id, product_id) constraint fires on
+            // the second writer. Treat as idempotent success — the item is already in the list.
+        }
     }
 
     /**

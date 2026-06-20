@@ -1,5 +1,5 @@
 HTTP 422
-X-Request-Id: d733d9ef-1f22-4fca-b809-c02a215774c0
+X-Request-Id: 0afaa1ef-49b8-49d1-92a5-02f7bc1aa313
 Content-Type: application/json
 
-{"success":false,"error":{"code":"PAYMENT_AMOUNT_MISMATCH","message":"주문=ORD-1, 결제=10000, 청구=12000","path":"/test/payment-mismatch","traceId":"d733d9ef-1f22-4fca-b809-c02a215774c0"}}
+{"success":false,"error":{"code":"PAYMENT_AMOUNT_MISMATCH","message":"결제 금액이 주문 금액과 일치하지 않습니다.","path":"/test/payment-mismatch","traceId":"0afaa1ef-49b8-49d1-92a5-02f7bc1aa313"}}

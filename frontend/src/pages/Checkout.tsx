@@ -132,11 +132,15 @@ export default function Checkout() {
     : 0
 
   const pointBalance = mySummary?.pointBalance ?? 0
-  const usePointAmount = Math.max(0, Math.min(pointBalance, parseInt(pointInput || '0', 10) || 0))
+  // The maximum points that can be applied is limited by both the balance
+  // and the order subtotal (product + shipping) so points never exceed what's owed.
+  const orderSubtotal = productAmount + shippingFee - couponDiscount
+  const maxApplicablePoints = Math.min(pointBalance, Math.max(0, orderSubtotal))
+  const usePointAmount = Math.max(0, Math.min(maxApplicablePoints, parseInt(pointInput || '0', 10) || 0))
 
   const orderTotal = Math.max(
     0,
-    productAmount + shippingFee - couponDiscount - usePointAmount,
+    orderSubtotal - usePointAmount,
   )
 
   const handlePointInputChange = (raw: string) => {
@@ -148,11 +152,13 @@ export default function Checkout() {
     const parsed = parseInt(digits || '0', 10)
     if (parsed > pointBalance) {
       setPointError(`보유 포인트(${formatKrw(pointBalance)})를 초과할 수 없습니다.`)
+    } else if (parsed > orderSubtotal) {
+      setPointError('포인트는 주문금액을 초과할 수 없습니다.')
     }
   }
 
   const handleUseAllPoints = () => {
-    setPointInput(String(pointBalance))
+    setPointInput(String(maxApplicablePoints))
     setPointError(null)
   }
 

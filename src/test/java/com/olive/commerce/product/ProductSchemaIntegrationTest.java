@@ -219,8 +219,12 @@ class ProductSchemaIntegrationTest extends PostgresIntegrationSupport {
 
     @Test
     void explainUsesTextPatternOpsIndexForLikeSearch() {
-        // AC3: EXPLAIN on LIKE '선크림%' must use idx_products_name_pattern
-        // Note: status 필터를 제거하여 name 인덱스 사용을 강제
+        // AC3: text_pattern_ops 인덱스가 prefix LIKE '선크림%'를 처리할 수 있는지 검증.
+        // 시드 테이블이 13행으로 작아 플래너는 비용상 Seq Scan을 선택하므로,
+        // SET LOCAL enable_seqscan = off로 인덱스 사용 가능 여부를 강제로 드러낸다.
+        // SET LOCAL과 EXPLAIN은 같은 트랜잭션/커넥션(@DataJpaTest 트랜잭션)에서 실행된다.
+        em.createNativeQuery("SET LOCAL enable_seqscan = off").executeUpdate();
+
         @SuppressWarnings("unchecked")
         List<String> plan = em.createNativeQuery("""
                 EXPLAIN
@@ -229,7 +233,7 @@ class ProductSchemaIntegrationTest extends PostgresIntegrationSupport {
 
         String planText = String.join(" ", plan);
         assertThat(planText)
-                .as("idx_products_name_pattern(text_pattern_ops) 인덱스가 사용되어야 함")
+                .as("idx_products_name_pattern(text_pattern_ops) 인덱스가 prefix LIKE에 사용 가능해야 함")
                 .contains("idx_products_name_pattern");
     }
 
