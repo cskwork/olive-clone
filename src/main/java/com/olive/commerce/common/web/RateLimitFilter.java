@@ -11,14 +11,15 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.MDC;
 import org.springframework.core.env.Environment;
-import org.springframework.core.env.Profiles;
 import org.springframework.http.MediaType;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * Per-IP token-bucket rate limiter applied to high-traffic public endpoints.
@@ -29,10 +30,14 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li><b>browse</b>— /api/search/** and /api/products/** (lenient crawl guard)</li>
  * </ul>
  *
- * <p><b>Profile gating</b>: the limiter is unconditionally bypassed when the
- * {@code test} Spring profile is active, regardless of {@code olive.ratelimit.enabled}.
- * This prevents the existing test suite (which fires many requests per IP from a single
- * loopback address) from being accidentally throttled without needing YAML changes.
+ * <p><b>Profile gating</b>: the limiter is bypassed when the {@code test} Spring profile
+ * is active AND {@code olive.ratelimit.force-active} is {@code false} (default).
+ * Set {@code force-active=true} in a {@code @TestPropertySource} to enable enforcement
+ * in targeted rate-limit integration tests (AC4) without affecting the general suite.
+ *
+ * <p><b>Bounded maps</b>: per-IP bucket caches are capped at {@value #MAX_BUCKETS} entries
+ * using an access-ordered {@link LinkedHashMap} with LRU eviction to prevent memory leaks
+ * under sustained traffic from many distinct IPs (DoS mitigation).
  *
  * <p><b>IP resolution</b>: uses {@link HttpServletRequest#getRemoteAddr()} only.
  * X-Forwarded-For is intentionally ignored because it is trivially spoofable.
@@ -44,13 +49,30 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private static final String RATE_LIMIT_EXCEEDED_CODE = "RATE_LIMIT_EXCEEDED";
 
+    /** Maximum number of per-IP buckets to keep in memory before evicting the least-recently-used. */
+    private static final int MAX_BUCKETS = 50_000;
+
     private final RateLimitProperties props;
     private final ObjectMapper objectMapper;
     private final Environment environment;
 
-    // Separate caches per tier to allow independent per-IP token pools.
-    private final ConcurrentHashMap<String, Bucket> authBuckets = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, Bucket> browseBuckets = new ConcurrentHashMap<>();
+    // Separate caches per tier — bounded LRU map prevents unbounded growth (DoS mitigation).
+    private final Map<String, Bucket> authBuckets = Collections.synchronizedMap(
+        new LinkedHashMap<>(16, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<String, Bucket> eldest) {
+                return size() > MAX_BUCKETS;
+            }
+        }
+    );
+    private final Map<String, Bucket> browseBuckets = Collections.synchronizedMap(
+        new LinkedHashMap<>(16, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<String, Bucket> eldest) {
+                return size() > MAX_BUCKETS;
+            }
+        }
+    );
 
     public RateLimitFilter(RateLimitProperties props,
                            ObjectMapper objectMapper,
@@ -62,8 +84,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        // Always bypass in the test profile — no YAML override needed.
-        if (environment.matchesProfiles("test")) {
+        // Bypass in the test profile unless force-active is explicitly enabled.
+        // force-active=true is set only in RateLimitEnforcementIT to prove AC4 end-to-end
+        // without affecting the general test suite.
+        boolean testProfile = environment.matchesProfiles("test");
+        if (testProfile && !props.isForceActive()) {
             return true;
         }
         if (!props.isEnabled()) {
@@ -86,11 +111,18 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
         Bucket bucket;
         if (isAuthPath(path)) {
-            bucket = authBuckets.computeIfAbsent(ip,
-                k -> newBucket(props.getAuth().getRequestsPerMinute()));
+            // Explicit synchronization: Collections.synchronizedMap does not make
+            // computeIfAbsent atomic — we must synchronize on the map itself so that
+            // the LRU removeEldestEntry check and the put are performed under one lock.
+            synchronized (authBuckets) {
+                bucket = authBuckets.computeIfAbsent(ip,
+                    k -> newBucket(props.getAuth().getRequestsPerMinute()));
+            }
         } else {
-            bucket = browseBuckets.computeIfAbsent(ip,
-                k -> newBucket(props.getBrowse().getRequestsPerMinute()));
+            synchronized (browseBuckets) {
+                bucket = browseBuckets.computeIfAbsent(ip,
+                    k -> newBucket(props.getBrowse().getRequestsPerMinute()));
+            }
         }
 
         if (bucket.tryConsume(1)) {

@@ -64,6 +64,7 @@ public class PaymentService {
     private final ObjectMapper objectMapper;
     private final StringRedisTemplate redisTemplate;
     private final PaymentTransactionRecorder transactionRecorder;
+    private final InventoryCommitFailureRecorder inventoryCommitFailureRecorder;
 
     /**
      * 결제 확인 (PRD §8.4 8단계 파이프라인).
@@ -299,33 +300,19 @@ public class PaymentService {
     /**
      * 재고 커밋 실패를 보정용 outbox 이벤트로 기록.
      * <p>
-     * PG 승인은 이미 확정되었으므로 롤백하지 않는다. 배치/워커가 이 이벤트를 받아
-     * 재고 커밋을 재시도하거나 수동 보정한다.
+     * PG 승인은 이미 확정되었으므로 결제 트랜잭션을 롤백하지 않는다. 보정 이벤트가
+     * 결제 트랜잭션과 함께 사라지지 않도록 {@link InventoryCommitFailureRecorder}가
+     * REQUIRES_NEW로 독립 커밋한다. 그 독립 트랜잭션마저 실패하면(드문 경우) 결제 승인은
+     * 보존하되 운영 알림용 구조화 ERROR 로그를 남긴다 — 보정 신호가 조용히 사라지지 않게 한다.
      */
     private void recordInventoryCommitFailure(Order order, Payment payment, Exception cause) {
         try {
-            String payloadJson = objectMapper.writeValueAsString(Map.of(
-                    "orderId", order.getId(),
-                    "orderNo", order.getOrderNo(),
-                    "paymentId", payment.getId(),
-                    "reason", cause.getMessage() != null ? cause.getMessage() : cause.getClass().getSimpleName()
-            ));
-            OutboxEvent outboxEvent = OutboxEvent.create(
-                    "PAYMENT",
-                    payment.getId(),
-                    "INVENTORY_COMMIT_FAILED",
-                    payloadJson
-            );
-            outboxEventRepository.save(outboxEvent);
+            inventoryCommitFailureRecorder.record(order, payment, cause);
         } catch (Exception e) {
-            log.error("Failed to record inventory-commit-failure event for payment {}: {}",
-                    payment.getId(), e.getMessage());
+            log.error("ALERT inventory-commit compensation could not be durably recorded for payment {} "
+                            + "(payment already approved, NOT rolling back) — manual recovery required: {}",
+                    payment.getId(), e.getMessage(), e);
         }
-        auditLogger.log("INVENTORY_COMMIT_FAILED", Map.of(
-                "orderId", order.getId(),
-                "orderNo", order.getOrderNo(),
-                "paymentId", payment.getId()
-        ));
     }
 
     /**

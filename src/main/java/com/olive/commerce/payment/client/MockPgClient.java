@@ -27,7 +27,7 @@ public class MockPgClient implements PgClient {
      * 단위 테스트용 no-arg 생성자에서 사용하는 기본 시크릿.
      * 값은 application-test.yml 의 olive.pg.webhook-secret 과 동일해야 한다.
      */
-    static final String DEFAULT_TEST_SECRET = "mock-webhook-secret-for-testing";
+    public static final String DEFAULT_TEST_SECRET = "mock-webhook-secret-for-testing";
 
     private final String webhookSecret;
 

@@ -117,6 +117,9 @@ public class OutboxAdminController {
         OffsetDateTime createdAt,
         OffsetDateTime processedAt
     ) {
+        /** Maximum characters of lastError surfaced in the API response. */
+        private static final int MAX_ERROR_LEN = 200;
+
         static DlqEventDto from(OutboxEvent e) {
             return new DlqEventDto(
                 e.getId(),
@@ -124,10 +127,23 @@ public class OutboxAdminController {
                 e.getAggregateId(),
                 e.getEventType(),
                 e.getAttemptCount(),
-                e.getLastError(),
+                truncateError(e.getLastError()),
                 e.getCreatedAt(),
                 e.getProcessedAt()
             );
+        }
+
+        /**
+         * Truncates raw exception text to avoid dumping multi-line stack traces into API responses.
+         * Strips embedded newlines so the JSON field remains a single readable line.
+         */
+        private static String truncateError(String error) {
+            if (error == null) {
+                return null;
+            }
+            // Collapse newlines/carriage-returns into a space before truncating.
+            String flat = error.replace('\n', ' ').replace('\r', ' ');
+            return flat.length() > MAX_ERROR_LEN ? flat.substring(0, MAX_ERROR_LEN) : flat;
         }
     }
 

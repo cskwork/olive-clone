@@ -7,6 +7,7 @@ import com.olive.commerce.common.error.ErrorCode;
 import com.olive.commerce.inventory.InventoryService;
 import com.olive.commerce.payment.Payment;
 import com.olive.commerce.payment.PaymentRepository;
+import com.olive.commerce.payment.RefundRepository;
 import com.olive.commerce.payment.client.PgClient;
 import com.olive.commerce.payment.client.dto.CancelRequest;
 import com.olive.commerce.payment.client.dto.CancelResponse;
@@ -44,6 +45,7 @@ public class OrderCancellationService {
     private final CouponService couponService;
     private final PointService pointService;
     private final PaymentRepository paymentRepository;
+    private final RefundRepository refundRepository;
     private final PgClient pgClient;
 
     private final AuditLogger auditLogger;
@@ -280,9 +282,27 @@ public class OrderCancellationService {
                     "No paymentKey stored for paid order: " + orderId);
         }
 
+        // 이미 승인된 부분 환불을 제외한 잔여 청구액만 PG에서 취소한다.
+        // order.finalPaymentAmount를 그대로 보내면 부분 환불된 만큼 이중 환급이 발생한다.
+        java.math.BigDecimal paidAmount = payment.getApprovedAmount() != null
+                ? payment.getApprovedAmount()
+                : order.getFinalPaymentAmount();
+        java.math.BigDecimal alreadyRefunded = refundRepository.sumApprovedAmountByPaymentId(payment.getId());
+        java.math.BigDecimal cancelAmount = paidAmount.subtract(alreadyRefunded);
+
+        // 이미 전액 환불되었으면 PG 재호출 없이 payment만 CANCELED로 정리한다.
+        if (cancelAmount.compareTo(java.math.BigDecimal.ZERO) <= 0) {
+            log.info("Nothing left to cancel at PG for order {} (paid={}, refunded={}), marking payment CANCELED",
+                    orderId, paidAmount, alreadyRefunded);
+            payment.setStatus(Payment.PaymentStatus.CANCELED);
+            payment.setFailedReason(reason);
+            paymentRepository.save(payment);
+            return;
+        }
+
         CancelResponse pgResponse = pgClient.cancelPayment(new CancelRequest(
                 paymentKey,
-                order.getFinalPaymentAmount(),
+                cancelAmount,
                 reason
         ));
 
@@ -290,7 +310,7 @@ public class OrderCancellationService {
         payment.setFailedReason(reason);
         paymentRepository.save(payment);
 
-        log.info("PG cancel completed for order {}: paymentKey={}, pgStatus={}",
-                orderId, paymentKey, pgResponse.status());
+        log.info("PG cancel completed for order {}: paymentKey={}, cancelAmount={}, alreadyRefunded={}, pgStatus={}",
+                orderId, paymentKey, cancelAmount, alreadyRefunded, pgResponse.status());
     }
 }

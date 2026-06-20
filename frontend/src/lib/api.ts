@@ -20,8 +20,9 @@ interface RequestOptions {
   signal?: AbortSignal
 }
 
-// Guard flag: prevents the refresh call itself from triggering another refresh.
-let isRefreshing = false
+// Single-flight promise for token refresh: ensures concurrent 401s share one refresh,
+// preventing multiple refresh calls that would consume a rotating refresh token.
+let refreshPromise: Promise<boolean> | null = null
 
 async function request<T>(path: string, opts: RequestOptions = {}): Promise<ApiResponse<T>> {
   const token = getAccessToken()
@@ -36,9 +37,13 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<ApiR
     signal: opts.signal,
   })
 
-  // On 401: attempt ONE token refresh, then retry the original request once.
-  if (res.status === 401 && !isRefreshing) {
-    const refreshed = await attemptRefresh()
+  // On 401: join or start a single shared refresh, then retry the original request once.
+  // Skip for /auth/refresh itself to prevent infinite loops.
+  if (res.status === 401 && !path.startsWith('/auth/refresh')) {
+    if (!refreshPromise) {
+      refreshPromise = attemptRefresh().finally(() => { refreshPromise = null })
+    }
+    const refreshed = await refreshPromise
     if (refreshed) {
       const newToken = getAccessToken()
       const retryRes = await fetch(`${BASE}${path}`, {
@@ -88,7 +93,6 @@ async function attemptRefresh(): Promise<boolean> {
   const refreshToken = getRefreshToken()
   if (!refreshToken) return false
 
-  isRefreshing = true
   try {
     const res = await fetch(`${BASE}/auth/refresh`, {
       method: 'POST',
@@ -117,8 +121,6 @@ async function attemptRefresh(): Promise<boolean> {
   } catch {
     clearTokens()
     return false
-  } finally {
-    isRefreshing = false
   }
 }
 
@@ -158,17 +160,45 @@ export async function apiPostWithHeaders<T>(
   body?: unknown,
   headers?: Record<string, string>,
 ): Promise<T> {
-  const token = getAccessToken()
+  const buildHeaders = (tok: string | null) => ({
+    Accept: 'application/json',
+    ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+    ...(tok ? { Authorization: `Bearer ${tok}` } : {}),
+    ...headers,
+  })
+
   const res = await fetch(`${BASE}${path}`, {
     method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...headers,
-    },
+    headers: buildHeaders(getAccessToken()),
     body: body !== undefined ? JSON.stringify(body) : undefined,
   })
+
+  // On 401: join or start the shared refresh, then retry once.
+  if (res.status === 401 && !path.startsWith('/auth/refresh')) {
+    if (!refreshPromise) {
+      refreshPromise = attemptRefresh().finally(() => { refreshPromise = null })
+    }
+    const refreshed = await refreshPromise
+    if (refreshed) {
+      const retryRes = await fetch(`${BASE}${path}`, {
+        method: 'POST',
+        headers: buildHeaders(getAccessToken()),
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+      })
+      let retryEnvelope: ApiResponse<T> | null = null
+      try {
+        retryEnvelope = (await retryRes.json()) as ApiResponse<T>
+      } catch {
+        // non-JSON body
+      }
+      if (!retryRes.ok || !retryEnvelope?.success) {
+        const err = retryEnvelope?.error
+        throw new ApiError(err?.message ?? `요청 실패 (${retryRes.status})`, retryRes.status, err?.code)
+      }
+      return retryEnvelope.data as T
+    }
+    throw new ApiError('인증이 만료되었습니다. 다시 로그인해주세요.', 401)
+  }
 
   let envelope: ApiResponse<T> | null = null
   try {

@@ -36,6 +36,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 /**
  * RefundService 단위 테스트 (OLV-074).
@@ -119,6 +120,17 @@ class RefundServiceTest {
         );
         testPayment.setId(200L);
         testPayment.approve("mock-payment-key", "mock", BigDecimal.valueOf(47000), OffsetDateTime.now());
+
+        // 기본 락 스텁: requestRefund/approveRefund가 Payment 행을 FOR UPDATE로 잠근다.
+        // 개별 테스트에서 별도 동작이 필요하면 재정의한다 (lenient — 미사용 시 실패 안 함).
+        lenient().when(paymentRepository.findByIdForUpdate(testPayment.getId()))
+                .thenReturn(Optional.of(testPayment));
+        // 기본 누적 환불액 0 (REQUESTED+APPROVED). 부분 환불 누적 테스트에서 재정의한다.
+        lenient().when(refundRepository.sumRequestedAndApprovedAmountByPaymentId(testPayment.getId()))
+                .thenReturn(BigDecimal.ZERO);
+        // 기본 승인 누적 환불액 0 (APPROVED). approveRefund 누적 한도 검사용.
+        lenient().when(refundRepository.sumApprovedAmountByPaymentId(testPayment.getId()))
+                .thenReturn(BigDecimal.ZERO);
     }
 
     // -------------------------------------------------------------------------
@@ -259,8 +271,8 @@ class RefundServiceTest {
         when(paymentRepository.findByOrderId(testOrder.getId())).thenReturn(Optional.of(testPayment));
         when(refundRepository.findByOrderIdAndStatus(testOrder.getId(), RefundStatus.REQUESTED))
                 .thenReturn(Optional.empty());
-        // 이미 22,000원 환불 완료
-        when(refundRepository.sumApprovedAmountByPaymentId(testPayment.getId()))
+        // 이미 22,000원 환불 완료 (REQUESTED+APPROVED 누적)
+        when(refundRepository.sumRequestedAndApprovedAmountByPaymentId(testPayment.getId()))
                 .thenReturn(BigDecimal.valueOf(22000));
         when(refundRepository.save(any(Refund.class))).thenAnswer(inv -> {
             Refund r = inv.getArgument(0);
@@ -294,8 +306,8 @@ class RefundServiceTest {
         when(paymentRepository.findByOrderId(testOrder.getId())).thenReturn(Optional.of(testPayment));
         when(refundRepository.findByOrderIdAndStatus(testOrder.getId(), RefundStatus.REQUESTED))
                 .thenReturn(Optional.empty());
-        // 이미 전액 환불 완료
-        when(refundRepository.sumApprovedAmountByPaymentId(testPayment.getId()))
+        // 이미 전액 환불 완료 (REQUESTED+APPROVED 누적)
+        when(refundRepository.sumRequestedAndApprovedAmountByPaymentId(testPayment.getId()))
                 .thenReturn(BigDecimal.valueOf(47000));
 
         // When & Then
@@ -354,6 +366,126 @@ class RefundServiceTest {
         assertThatThrownBy(() -> refundService.requestRefund(memberId, orderNo, request))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("Requested quantity 3 exceeds ordered quantity 2");
+    }
+
+    // -------------------------------------------------------------------------
+    // 머니 정합성 방어 (FIX-1 / FIX-2 / FIX-3)
+    // -------------------------------------------------------------------------
+
+    /**
+     * FIX-1: 빈 items 리스트 → VALIDATION_FAILED.
+     * <p>@NotEmpty는 API 계층만 보호하므로 서비스 직접 호출 시 빈 리스트가
+     * 0원 환불을 조용히 만들지 않도록 명시적으로 거절해야 한다.
+     */
+    @Test
+    void requestRefund_빈아이템리스트_거절() {
+        // Given — items가 비어 있는 요청 (API 검증 우회 경로 가정)
+        String orderNo = testOrder.getOrderNo();
+        Long memberId = testOrder.getMemberId();
+        RefundDtos.RefundRequestDto request = new RefundDtos.RefundRequestDto(
+                "빈 환불 항목",
+                List.of()
+        );
+
+        when(orderRepository.findByOrderNo(orderNo)).thenReturn(Optional.of(testOrder));
+        when(paymentRepository.findByOrderId(testOrder.getId())).thenReturn(Optional.of(testPayment));
+        when(refundRepository.findByOrderIdAndStatus(testOrder.getId(), RefundStatus.REQUESTED))
+                .thenReturn(Optional.empty());
+
+        // When & Then
+        assertThatThrownBy(() -> refundService.requestRefund(memberId, orderNo, request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Refund items must not be empty");
+
+        // 빈 환불이 저장되지 않았는지 확인
+        verify(refundRepository, never()).save(any(Refund.class));
+    }
+
+    /**
+     * FIX-3: 같은 orderItemId를 여러 줄로 쪼개 보내도 누적 수량이 주문 수량을
+     * 넘으면 거절한다. item qty=2, 요청 [2, 2] → 누적 4 > 2.
+     */
+    @Test
+    void requestRefund_동일아이템_중복라인_누적수량초과_거절() {
+        // Given — 같은 아이템을 qty=2씩 두 줄 (각 줄은 ≤2지만 누적 4)
+        String orderNo = testOrder.getOrderNo();
+        Long memberId = testOrder.getMemberId();
+        RefundDtos.RefundRequestDto request = new RefundDtos.RefundRequestDto(
+                "중복 라인 과다 환불 시도",
+                List.of(
+                        new RefundDtos.RefundRequestDto.RefundItem(TEST_ITEM_ID, 2),
+                        new RefundDtos.RefundRequestDto.RefundItem(TEST_ITEM_ID, 2)
+                )
+        );
+
+        when(orderRepository.findByOrderNo(orderNo)).thenReturn(Optional.of(testOrder));
+        when(paymentRepository.findByOrderId(testOrder.getId())).thenReturn(Optional.of(testPayment));
+        when(refundRepository.findByOrderIdAndStatus(testOrder.getId(), RefundStatus.REQUESTED))
+                .thenReturn(Optional.empty());
+
+        // When & Then — 누적 4 > 주문 수량 2
+        assertThatThrownBy(() -> refundService.requestRefund(memberId, orderNo, request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Requested quantity 4 exceeds ordered quantity 2");
+
+        verify(refundRepository, never()).save(any(Refund.class));
+    }
+
+    /**
+     * FIX-2: 누적 한도는 진행 중(REQUESTED)인 환불까지 포함한다.
+     * 이미 in-flight REQUESTED로 47,000원이 잡혀 있으면 추가 요청은 거절된다.
+     */
+    @Test
+    void requestRefund_진행중_REQUESTED환불_누적포함_초과거절() {
+        // Given — 아직 승인 전이지만 REQUESTED 누적이 전액(47,000)을 차지
+        String orderNo = testOrder.getOrderNo();
+        Long memberId = testOrder.getMemberId();
+        RefundDtos.RefundRequestDto request = new RefundDtos.RefundRequestDto(
+                "중복 in-flight 환불 시도",
+                List.of(new RefundDtos.RefundRequestDto.RefundItem(TEST_ITEM_ID, 1))
+        );
+
+        when(orderRepository.findByOrderNo(orderNo)).thenReturn(Optional.of(testOrder));
+        when(paymentRepository.findByOrderId(testOrder.getId())).thenReturn(Optional.of(testPayment));
+        when(refundRepository.findByOrderIdAndStatus(testOrder.getId(), RefundStatus.REQUESTED))
+                .thenReturn(Optional.empty());
+        // REQUESTED+APPROVED 누적이 이미 전액
+        when(refundRepository.sumRequestedAndApprovedAmountByPaymentId(testPayment.getId()))
+                .thenReturn(BigDecimal.valueOf(47000));
+
+        // When & Then — 남은 환불 가능액 없음
+        assertThatThrownBy(() -> refundService.requestRefund(memberId, orderNo, request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("No refundable amount remaining");
+
+        // Payment 행 락이 한도 검사 전에 획득되었는지 확인
+        verify(paymentRepository).findByIdForUpdate(testPayment.getId());
+    }
+
+    /**
+     * FIX-2: approveRefund는 PG 호출 전에 Payment 행을 잠그고, 이미 승인된 환불
+     * 누적액 + 이번 환불액이 결제 승인액을 초과하면 거절한다 (동시 승인 과다 환불 차단).
+     */
+    @Test
+    void approveRefund_누적승인액_초과시_PG호출전_거절() {
+        // Given — 이번 환불 25,000. 이미 승인된 환불이 30,000 → 누적 55,000 > 결제 47,000
+        Refund refund = Refund.request(testPayment, testOrder, BigDecimal.valueOf(25000), "추가 환불");
+        refund.setId(5L);
+        Long adminId = 100L;
+
+        when(refundRepository.findById(refund.getId())).thenReturn(Optional.of(refund));
+        when(refundRepository.sumApprovedAmountByPaymentId(testPayment.getId()))
+                .thenReturn(BigDecimal.valueOf(30000));
+
+        // When & Then
+        assertThatThrownBy(() -> refundService.approveRefund(refund.getId(), adminId))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Cumulative refund exceeds paid amount");
+
+        // PG 환불은 호출되지 않아야 함
+        verify(pgClient, never()).refund(any(RefundRequest.class));
+        // 한도 검사 전 Payment 행 락 획득 확인
+        verify(paymentRepository).findByIdForUpdate(testPayment.getId());
     }
 
     // -------------------------------------------------------------------------

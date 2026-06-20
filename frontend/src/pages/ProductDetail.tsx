@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiGet, apiGetPage, ApiError, getAccessToken } from '@/lib/api'
 import { addToCart } from '@/lib/cart'
-import { addWishlist, removeWishlist } from '@/lib/wishlist'
+import { addWishlist, removeWishlist, listWishlist } from '@/lib/wishlist'
 import type { ProductDetail as ProductDetailType, PageMeta } from '@/lib/types'
 import type { SelectedOption } from '@/components/QuantityOptionSelector/QuantityOptionSelector'
 import ImageCarousel from '@/components/ImageCarousel/ImageCarousel'
@@ -71,6 +71,22 @@ export default function ProductDetail() {
     queryFn: ({ signal }) => apiGet<ProductDetailType>(`/products/${id}`, signal),
     enabled: Boolean(id),
   })
+
+  // Hydrate wishlist state: fetch page-1 of the member's wishlist (size=100) and
+  // check if this product is present. Skipped when the user is not logged in.
+  // Does not block render — isWishlisted stays false until the query resolves.
+  const { data: wishlistPage } = useQuery({
+    queryKey: ['my-wishlist-check', id],
+    queryFn: ({ signal }) => listWishlist({ page: 0, size: 100 }, signal),
+    enabled: Boolean(id) && Boolean(getAccessToken()),
+    staleTime: 30_000,
+  })
+  useEffect(() => {
+    if (!wishlistPage || !id) return
+    const productId = parseInt(id, 10)
+    const found = wishlistPage.data.some((item) => item.productId === productId)
+    setIsWishlisted(found)
+  }, [wishlistPage, id])
 
   // Fetch a single page of reviews
   const { isFetching: reviewsFetching, isError: reviewsError, data: latestReviewPage } = useQuery({
@@ -186,9 +202,9 @@ export default function ProductDetail() {
     }
   }, [product, isWishlisted, wishlistPending, navigate, id])
 
-  const handleLoadMoreReviews = () => {
+  const handleLoadMoreReviews = useCallback(() => {
     setReviewPage((p) => p + 1)
-  }
+  }, [])
 
   // Price total: sum((salePrice + optionPrice) * qty) = salePrice * totalQty + sum(optionPrice * qty)
   const totalSelectedQty = selectedOptions.reduce((s, o) => s + o.quantity, 0)

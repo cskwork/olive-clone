@@ -104,3 +104,13 @@
 ### M4/M5 — 프론트엔드 완성 + superdesign 리디자인 (IN PROGRESS)
 - FE-A(기반): 세션/리프레시, cart merge, lib 클라이언트, Pretendard, 토큰/스켈레톤/reduced-motion, 라우트+404, 플레이스홀더 6페이지. conductor 수정: @types/node(기존 빌드 breakage 해소). `npm run build` GREEN. **commit 대기**.
 - 다음: FE-B 페이지별 병렬(Search/List, MyPage/Orders/Wishlist, Header/Home, PDP/Checkout) — 기능+비주얼 동시.
+- FE-B 4 병렬 완료, 통합 `npm run build` GREEN(139 modules). **commit 5c4cf1b**.
+
+### Verify/Committee/Deliver (최종)
+- 전체 `./gradlew test`(386+): 초기 3 실패 → LogbackAuditLoggerIT(flaky), ProductSchema(내 regression), PointService(pre-existing 날짜버그)로 판별(main worktree 대조).
+- 커미티(architect/security/code) + 완전성 비평(critic) 적대적 리뷰 → BLOCK 사유 전부 수정:
+  - FIX-1(money): over-refund 비관락+누적상한, 취소액=승인−환불, recordInventoryCommitFailure REQUIRES_NEW, 빈환불 가드.
+  - FIX-2(security): _test/me 명시규칙, RateLimit 바운드 LRU + AC4 통합 IT, rejectedValue null, webhook prod 가드, DLQ truncate, Wishlist 멱등.
+  - FIX-3(FE): 단일-flight refresh, 체크아웃 포인트 clamp, PDP 위시리스트 하이드레이션.
+  - FIX-4(tests): ProductSchema enable_seqscan 결정화(regression), PointService 시간기준 앵커(pre-existing).
+- verification.md: Coverage 맵 + Not covered(8) + Regression tests + verdict GREEN.

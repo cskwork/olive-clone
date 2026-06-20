@@ -99,8 +99,14 @@ public class RefundService {
                     "Refund already requested for this order");
         }
 
-        // Step 5: 환불 가능 금액 계산
-        BigDecimal totalRefunded = refundRepository.sumApprovedAmountByPaymentId(payment.getId());
+        // Step 5: 환불 가능 금액 계산.
+        // Payment 행을 비관적 쓰기 락으로 잠근 뒤 누적 환불액을 읽어, 동시 환불이
+        // 결제 금액을 초과하는 race를 막는다. 누적에는 진행 중(REQUESTED)인 환불도
+        // 포함시켜 겹치는 in-flight 환불이 책임을 이중으로 늘리지 못하게 한다.
+        paymentRepository.findByIdForUpdate(payment.getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.PAYMENT_NOT_FOUND,
+                        "Payment not found for lock: " + payment.getId()));
+        BigDecimal totalRefunded = refundRepository.sumRequestedAndApprovedAmountByPaymentId(payment.getId());
         BigDecimal maxRefundable = order.getFinalPaymentAmount().subtract(totalRefunded);
 
         if (maxRefundable.compareTo(BigDecimal.ZERO) <= 0) {
@@ -174,6 +180,23 @@ public class RefundService {
 
         Order order = refund.getOrder();
         Payment payment = refund.getPayment();
+
+        // Step 0: 과다 환불 race 차단.
+        // Payment 행을 비관적 쓰기 락으로 잠근 뒤, 이미 승인된(APPROVED) 환불 누적액에
+        // 이번 환불액을 더한 값이 결제 승인액(approvedAmount)을 넘지 않는지 PG 호출 전에 재검증한다.
+        // 락이 없으면 두 승인이 동시에 한도 검사를 통과해 결제 금액을 초과할 수 있다.
+        paymentRepository.findByIdForUpdate(payment.getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.PAYMENT_NOT_FOUND,
+                        "Payment not found for lock: " + payment.getId()));
+        BigDecimal alreadyApproved = refundRepository.sumApprovedAmountByPaymentId(payment.getId());
+        BigDecimal paidAmount = payment.getApprovedAmount() != null
+                ? payment.getApprovedAmount()
+                : order.getFinalPaymentAmount();
+        if (alreadyApproved.add(refund.getAmount()).compareTo(paidAmount) > 0) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    "Cumulative refund exceeds paid amount: alreadyApproved=" + alreadyApproved +
+                            ", thisRefund=" + refund.getAmount() + ", paid=" + paidAmount);
+        }
 
         // Step 1: PG 환불 호출
         String pgRefundKey;
@@ -407,28 +430,44 @@ public class RefundService {
     ) {
         List<RefundDtos.RefundRequestDto.RefundItem> requestedItems = request.items();
 
+        // 빈 요청 방어 (@NotEmpty는 API 계층만 보호 — 서비스 직접 호출/우회 경로 차단).
+        // 빈 리스트면 itemSubtotal=0으로 0원 환불이 조용히 만들어지므로 명시적으로 거절한다.
+        if (requestedItems == null || requestedItems.isEmpty()) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    "Refund items must not be empty");
+        }
+
         // 주문 라인 아이템을 ID로 색인
         Map<Long, com.olive.commerce.order.OrderItem> itemById = new java.util.HashMap<>();
         for (com.olive.commerce.order.OrderItem oi : order.getItems()) {
             itemById.put(oi.getId(), oi);
         }
 
+        // orderItem별 요청 수량을 누적한다. 같은 orderItemId가 여러 줄로 나뉘어 와도
+        // 누적 수량이 주문 수량을 넘지 못하게 막는다 (per-item 과다 환불 방지).
+        Map<Long, Integer> requestedQtyByItem = new java.util.HashMap<>();
+        for (RefundDtos.RefundRequestDto.RefundItem ri : requestedItems) {
+            requestedQtyByItem.merge(ri.orderItemId(), ri.quantity(), Integer::sum);
+        }
+
         // 요청된 아이템 합계 계산
         BigDecimal itemSubtotal = BigDecimal.ZERO;
-        for (RefundDtos.RefundRequestDto.RefundItem ri : requestedItems) {
-            com.olive.commerce.order.OrderItem oi = itemById.get(ri.orderItemId());
+        for (Map.Entry<Long, Integer> entry : requestedQtyByItem.entrySet()) {
+            Long orderItemId = entry.getKey();
+            int requestedQty = entry.getValue();
+            com.olive.commerce.order.OrderItem oi = itemById.get(orderItemId);
             if (oi == null) {
                 throw new BusinessException(ErrorCode.VALIDATION_FAILED,
-                        "Order item not found in this order: orderItemId=" + ri.orderItemId());
+                        "Order item not found in this order: orderItemId=" + orderItemId);
             }
-            if (ri.quantity() > oi.getQuantity()) {
+            if (requestedQty > oi.getQuantity()) {
                 throw new BusinessException(ErrorCode.VALIDATION_FAILED,
-                        "Requested quantity " + ri.quantity() +
+                        "Requested quantity " + requestedQty +
                         " exceeds ordered quantity " + oi.getQuantity() +
-                        " for orderItemId=" + ri.orderItemId());
+                        " for orderItemId=" + orderItemId);
             }
             itemSubtotal = itemSubtotal.add(
-                    oi.getUnitPrice().multiply(BigDecimal.valueOf(ri.quantity()))
+                    oi.getUnitPrice().multiply(BigDecimal.valueOf(requestedQty))
             );
         }
 

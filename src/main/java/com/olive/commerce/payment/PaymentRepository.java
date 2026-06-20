@@ -1,7 +1,9 @@
 package com.olive.commerce.payment;
 
 import com.olive.commerce.payment.Payment.PaymentStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -19,6 +21,16 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
      * 주문 ID로 결제 조회 (1:1 관계).
      */
     Optional<Payment> findByOrderId(Long orderId);
+
+    /**
+     * PK로 결제 조회 + 행 비관적 쓰기 락 (FOR UPDATE).
+     * <p>
+     * 환불 누적 한도 검사 전에 Payment 행을 잠가, 동시 환불 승인이
+     * 결제 금액을 초과하는 race(과다 환불)를 막는다.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT p FROM Payment p WHERE p.id = :paymentId")
+    Optional<Payment> findByIdForUpdate(@Param("paymentId") Long paymentId);
 
     /**
      * PG payment key로 결제 조회 (webhook용).

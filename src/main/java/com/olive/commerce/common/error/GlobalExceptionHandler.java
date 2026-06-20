@@ -143,8 +143,8 @@ public class GlobalExceptionHandler {
     }
 
     private static FieldErrorEntry toFieldErrorEntry(FieldError fe) {
-        return new FieldErrorEntry(fe.getField(),
-            fe.getDefaultMessage(),
-            fe.getRejectedValue());
+        // rejectedValue is set to null: echoing submitted values risks leaking PII
+        // (e.g. passwords, personal data) in 400 responses visible to clients.
+        return new FieldErrorEntry(fe.getField(), fe.getDefaultMessage(), null);
     }
 }
