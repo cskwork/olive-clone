@@ -1,7 +1,7 @@
 {
   "mode": "LEGACY",
   "slug": "real-mall-upgrade",
-  "current_phase": "build",
+  "current_phase": "deliver",
   "cycles": {
     "intake": 1, "validate": 0, "plan": 1, "human_feedback": 1, "build": 0,
     "verify": 0, "qa": 0, "deliver": 0,

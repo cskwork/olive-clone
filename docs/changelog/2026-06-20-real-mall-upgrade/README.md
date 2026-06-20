@@ -114,3 +114,10 @@
   - FIX-3(FE): 단일-flight refresh, 체크아웃 포인트 clamp, PDP 위시리스트 하이드레이션.
   - FIX-4(tests): ProductSchema enable_seqscan 결정화(regression), PointService 시간기준 앵커(pre-existing).
 - verification.md: Coverage 맵 + Not covered(8) + Regression tests + verdict GREEN.
+- **delivery-gate.sh: GATE PASS** — artifacts present / verification GREEN no RED / completeness contract / 전체 `./gradlew test` 그린.
+
+## Final status: DELIVERED (branch feat/real-mall-upgrade)
+- 7 commits: 09d561b(M1) 4f2658c(M2) 418e041(M3) 510d5c4(M6) 78543f3(FE-A) 5c4cf1b(FE-B) c2bff79(committee fixes).
+- 백엔드 full `./gradlew test` GREEN(JDK21+Docker). 프론트 `npm run build` GREEN(139 modules).
+- 미push/미merge — 사용자 승인 후 push/PR 예정.
+- 잔여(Not covered): FE 자동테스트, 브라우저 구동 QA, 실PG reconciliation, prod yaml 주입, V6 트리거 CANCEL 부호버그(후속 V20).
