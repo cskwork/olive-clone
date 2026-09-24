@@ -64,8 +64,8 @@ const SAMPLE_IMAGES = [
 ]
 
 const SAMPLE_OPTIONS: ProductOptionSummary[] = [
-  { optionId: 1, optionName: '50ml (기본)', optionPrice: 0, status: 'ACTIVE', availableQuantity: 10 },
-  { optionId: 2, optionName: '100ml (+5,000원)', optionPrice: 5000, status: 'ACTIVE', availableQuantity: 3 },
+  { optionId: 1, optionName: '50ml (기본)', optionPrice: 0, status: 'ON_SALE', availableQuantity: 10 },
+  { optionId: 2, optionName: '100ml (+5,000원)', optionPrice: 5000, status: 'ON_SALE', availableQuantity: 3 },
   { optionId: 3, optionName: '품절 옵션', optionPrice: 0, status: 'SOLD_OUT', availableQuantity: 0 },
 ]
 
@@ -217,7 +217,7 @@ export default function Dev() {
       {/* 8. QuantityOptionSelector */}
       <Section title="8. QuantityOptionSelector">
         <div className={styles.qtyWrap}>
-          <QuantityOptionSelector options={SAMPLE_OPTIONS} onChange={setSelectedOptions} />
+          <QuantityOptionSelector options={SAMPLE_OPTIONS} unitPrice={20000} onChange={setSelectedOptions} />
           {selectedOptions.length > 0 && (
             <pre className={styles.jsonPreview}>
               {JSON.stringify(selectedOptions, null, 2)}

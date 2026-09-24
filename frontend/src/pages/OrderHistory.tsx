@@ -15,15 +15,18 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
+// Order.OrderStatus on the backend, serialized by name.
 type StatusKey =
-  | 'PENDING'
+  | 'CREATED'
+  | 'PAYMENT_PENDING'
   | 'PAID'
   | 'PREPARING'
-  | 'SHIPPED'
+  | 'SHIPPING'
   | 'DELIVERED'
-  | 'CANCELLED'
+  | 'CANCELED'
   | 'REFUND_REQUESTED'
   | 'REFUNDED'
+  | 'FAILED'
 
 interface StatusConfig {
   label: string
@@ -31,14 +34,16 @@ interface StatusConfig {
 }
 
 const STATUS_MAP: Partial<Record<StatusKey, StatusConfig>> = {
-  PENDING: { label: '결제 대기', className: styles.statusPending },
+  CREATED: { label: '주문 접수', className: styles.statusPending },
+  PAYMENT_PENDING: { label: '결제 대기', className: styles.statusPending },
   PAID: { label: '결제 완료', className: styles.statusPaid },
   PREPARING: { label: '상품 준비 중', className: styles.statusPreparing },
-  SHIPPED: { label: '배송 중', className: styles.statusShipped },
+  SHIPPING: { label: '배송 중', className: styles.statusShipped },
   DELIVERED: { label: '배송 완료', className: styles.statusDelivered },
-  CANCELLED: { label: '주문 취소', className: styles.statusCancelled },
+  CANCELED: { label: '주문 취소', className: styles.statusCancelled },
   REFUND_REQUESTED: { label: '환불 신청', className: styles.statusRefund },
   REFUNDED: { label: '환불 완료', className: styles.statusRefund },
+  FAILED: { label: '주문 실패', className: styles.statusCancelled },
 }
 
 function getStatusConfig(status: string): StatusConfig {
@@ -52,9 +57,9 @@ const STATUS_FILTERS: Array<{ value: string; label: string }> = [
   { value: '', label: '전체' },
   { value: 'PAID', label: '결제 완료' },
   { value: 'PREPARING', label: '준비 중' },
-  { value: 'SHIPPED', label: '배송 중' },
+  { value: 'SHIPPING', label: '배송 중' },
   { value: 'DELIVERED', label: '배송 완료' },
-  { value: 'CANCELLED', label: '취소/환불' },
+  { value: 'CANCELED', label: '주문 취소' },
 ]
 
 function OrderRowSkeleton() {

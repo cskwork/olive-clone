@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import type { ProductOptionSummary } from '@/lib/types'
 import styles from './QuantityOptionSelector.module.css'
 
@@ -11,6 +11,8 @@ export interface SelectedOption {
 
 interface QuantityOptionSelectorProps {
   options: ProductOptionSummary[]
+  /** Product sale price; each option's price is added on top of it. */
+  unitPrice: number
   onChange: (selected: SelectedOption[]) => void
 }
 
@@ -18,10 +20,22 @@ function formatKrw(amount: number): string {
   return amount.toLocaleString('ko-KR') + '원'
 }
 
-export default function QuantityOptionSelector({ options, onChange }: QuantityOptionSelectorProps) {
+export default function QuantityOptionSelector({ options, unitPrice, onChange }: QuantityOptionSelectorProps) {
   const [selected, setSelected] = useState<SelectedOption[]>([])
 
-  const activeOptions = options.filter((o) => o.status === 'ACTIVE')
+  // Only options the backend reports as ON_SALE can be bought.
+  const activeOptions = options.filter((o) => o.status === 'ON_SALE')
+
+  // A product with a single purchasable option (e.g. "기본") needs no choice:
+  // preselect it so the buy buttons work straight away.
+  const soleOption = activeOptions.length === 1 ? activeOptions[0] : null
+  useEffect(() => {
+    if (!soleOption) return
+    const next = [{ optionId: soleOption.optionId, optionName: soleOption.optionName, optionPrice: soleOption.optionPrice, quantity: 1 }]
+    setSelected(next)
+    onChange(next)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once per product option
+  }, [soleOption?.optionId])
 
   const handleSelect = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -78,7 +92,7 @@ export default function QuantityOptionSelector({ options, onChange }: QuantityOp
   return (
     <div className={styles.root}>
       {/* Dropdown */}
-      {activeOptions.length > 0 && (
+      {activeOptions.length > 1 && (
         <div className={styles.dropdownWrap}>
           <label className={styles.dropdownLabel} htmlFor="option-select">
             옵션 선택
@@ -117,13 +131,13 @@ export default function QuantityOptionSelector({ options, onChange }: QuantityOp
           {selected.map((s) => {
             const opt = options.find((o) => o.optionId === s.optionId)
             const maxQty = opt?.availableQuantity ?? 99
-            const lineTotal = (s.optionPrice) * s.quantity
+            const lineTotal = (unitPrice + s.optionPrice) * s.quantity
 
             return (
               <div key={s.optionId} className={styles.selectedRow}>
                 <div className={styles.selectedHeader}>
                   <span className={styles.selectedName}>{s.optionName}</span>
-                  <button
+                  {!soleOption && <button
                     type="button"
                     className={styles.removeBtn}
                     onClick={() => removeOption(s.optionId)}
@@ -133,7 +147,7 @@ export default function QuantityOptionSelector({ options, onChange }: QuantityOp
                       <line x1="18" y1="6" x2="6" y2="18" />
                       <line x1="6" y1="6" x2="18" y2="18" />
                     </svg>
-                  </button>
+                  </button>}
                 </div>
 
                 <div className={styles.stepperRow}>

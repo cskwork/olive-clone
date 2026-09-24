@@ -1,92 +1,25 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { getAccessToken, setAccessToken, apiGet } from '@/lib/api'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { getAccessToken, clearTokens, apiPost } from '@/lib/api'
+import { useCategoryTree, pouchStyle, type CategoryNode } from '@/lib/categories'
 import { fetchCart } from '@/lib/cart'
 import styles from './Header.module.css'
 
-interface ApiCategory {
-  categoryId: number
-  categoryName: string
-  categorySlug: string
-  children?: ApiCategory[]
-}
-
-interface StaticSubCategory {
-  label: string
-  href: string
-}
-
-interface StaticCategory {
+interface NavCategory {
   id: string
   label: string
-  subs: StaticSubCategory[]
+  slug: string
+  subs: { label: string; href: string }[]
 }
 
-const FALLBACK_CATEGORIES: StaticCategory[] = [
-  {
-    id: 'skincare',
-    label: '스킨케어',
-    subs: [
-      { label: '토너/스킨', href: '/category/toner' },
-      { label: '에센스/세럼', href: '/category/serum' },
-      { label: '크림/로션', href: '/category/cream' },
-      { label: '마스크팩', href: '/category/mask' },
-    ],
-  },
-  {
-    id: 'makeup',
-    label: '메이크업',
-    subs: [
-      { label: '베이스 메이크업', href: '/category/base' },
-      { label: '아이 메이크업', href: '/category/eye' },
-      { label: '립 메이크업', href: '/category/lip' },
-    ],
-  },
-  {
-    id: 'hair-body',
-    label: '헤어·바디',
-    subs: [
-      { label: '샴푸/컨디셔너', href: '/category/shampoo' },
-      { label: '바디워시', href: '/category/body-wash' },
-      { label: '헤어케어', href: '/category/haircare' },
-    ],
-  },
-  {
-    id: 'health-food',
-    label: '건강·푸드',
-    subs: [
-      { label: '건강기능식품', href: '/category/health' },
-      { label: '단백질/다이어트', href: '/category/protein' },
-      { label: '음료·티', href: '/category/drink' },
-    ],
-  },
-  {
-    id: 'mens',
-    label: '맨즈',
-    subs: [
-      { label: '스킨케어', href: '/category/mens-skin' },
-      { label: '면도/클렌징', href: '/category/shaving' },
-    ],
-  },
-  {
-    id: 'beauty-device',
-    label: '뷰티디바이스',
-    subs: [
-      { label: 'LED·초음파', href: '/category/led' },
-      { label: '미용기기', href: '/category/device' },
-    ],
-  },
-]
-
-function mapApiCategories(apiCats: ApiCategory[]): StaticCategory[] {
-  return apiCats.map((cat) => ({
-    id: String(cat.categoryId),
-    label: cat.categoryName,
-    subs: (cat.children ?? []).map((sub) => ({
-      label: sub.categoryName,
-      href: `/category/${sub.categorySlug}`,
-    })),
+function toNavCategories(nodes: CategoryNode[]): NavCategory[] {
+  return nodes.map((cat) => ({
+    id: String(cat.id),
+    label: cat.name,
+    slug: cat.slug,
+    // /category/:id resolves by numeric id (GET /api/categories/{id}/products).
+    subs: (cat.children ?? []).map((sub) => ({ label: sub.name, href: `/category/${sub.id}` })),
   }))
 }
 
@@ -100,14 +33,11 @@ export default function Header() {
   const drawerRef = useRef<HTMLDivElement>(null)
   const hamburgerRef = useRef<HTMLButtonElement>(null)
 
-  const { data: apiCategoriesData } = useQuery<ApiCategory[]>({
-    queryKey: ['categories'],
-    queryFn: ({ signal }) => apiGet<ApiCategory[]>('/categories', signal),
-    staleTime: 5 * 60 * 1000,
-  })
+  const queryClient = useQueryClient()
+  const { data: categoryTree } = useCategoryTree()
 
   const { data: cartData } = useQuery({
-    queryKey: ['cart-badge'],
+    queryKey: ['cart', 'badge'],
     queryFn: ({ signal }) => fetchCart(signal),
     enabled: isLoggedIn,
     staleTime: 60 * 1000,
@@ -116,14 +46,17 @@ export default function Header() {
 
   const cartCount = isLoggedIn ? (cartData?.totalItemCount ?? 0) : 0
 
-  const categories =
-    apiCategoriesData && apiCategoriesData.length > 0
-      ? mapApiCategories(apiCategoriesData)
-      : FALLBACK_CATEGORIES
+  const categories = toNavCategories(categoryTree?.categories ?? [])
 
-  const handleLogout = () => {
-    setAccessToken(null)
-    window.location.href = '/'
+  // Clear both tokens and every cached member query, then stay inside the SPA.
+  const handleLogout = async () => {
+    // Revoke the server-side refresh tokens first; a failure (e.g. already expired)
+    // must not keep the user signed in locally.
+    await apiPost('/auth/logout').catch(() => undefined)
+    clearTokens()
+    queryClient.clear()
+    setDrawerOpen(false)
+    navigate('/')
   }
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -185,8 +118,11 @@ export default function Header() {
         {/* Top bar */}
         <div className={styles.topBar}>
           {/* Logo */}
-          <Link to="/" className={styles.logoLink} aria-label="올리브 스토어 홈으로">
-            <span className={styles.logoText}>OLIVE</span>
+          <Link to="/" className={styles.logoLink} aria-label="결 마켓 홈으로">
+            <span className={styles.logoText}>
+              <span className={styles.logoMark} aria-hidden="true">결</span>
+              <span className={styles.logoWord}>GYEOL MARKET</span>
+            </span>
           </Link>
 
           {/* Search — desktop */}
@@ -244,7 +180,7 @@ export default function Header() {
                 <span className={styles.iconBtnLabel}>로그인</span>
               </Link>
             )}
-            <Link to="/cart" className={styles.iconBtn} aria-label={cartCount > 0 ? `장바구니 ${cartCount}개` : '장바구니'}>
+            <Link to="/cart" className={`${styles.iconBtn} ${styles.cartAction}`} aria-label={cartCount > 0 ? `장바구니 ${cartCount}개` : '장바구니'}>
               <span className={styles.iconBtnInner}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
                   <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
@@ -266,6 +202,14 @@ export default function Header() {
               <span className={styles.iconBtnLabel}>찜</span>
             </Link>
           </nav>
+
+          {/* Search entry — mobile (the desktop search field is hidden below 768px) */}
+          <Link to="/search" className={styles.mobileSearch} aria-label="상품 검색">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </Link>
 
           {/* Hamburger — mobile */}
           <button
@@ -296,8 +240,9 @@ export default function Header() {
         <nav className={styles.catNav} aria-label="카테고리 메뉴">
           <div className={styles.catNavInner}>
             {categories.map((cat) => (
-              <div key={cat.id} className={styles.catItem}>
+              <div key={cat.id} className={styles.catItem} style={pouchStyle(cat.slug)}>
                 <Link to={`/category/${cat.id}`} className={styles.catLink}>
+                  <span className={styles.catSwatch} aria-hidden="true" />
                   {cat.label}
                 </Link>
                 {cat.subs.length > 0 && (
@@ -431,7 +376,7 @@ export default function Header() {
           </svg>
           <span className={styles.tabLabel}>홈</span>
         </Link>
-        <Link to="/category/skincare" className={`${styles.tabItem} ${location.pathname.startsWith('/category') ? styles.active : ''}`} aria-label="카테고리">
+        <Link to={categories[0] ? `/category/${categories[0].id}` : '/search'} className={`${styles.tabItem} ${location.pathname.startsWith('/category') ? styles.active : ''}`} aria-label="카테고리">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
             <rect x="3" y="3" width="7" height="7" rx="1" />
             <rect x="14" y="3" width="7" height="7" rx="1" />

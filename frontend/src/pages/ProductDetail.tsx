@@ -302,6 +302,7 @@ export default function ProductDetail() {
             {hasOptions ? (
               <QuantityOptionSelector
                 options={product.options}
+                unitPrice={product.salePrice}
                 onChange={setSelectedOptions}
               />
             ) : (
