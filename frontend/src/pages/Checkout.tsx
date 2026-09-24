@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { fetchCart } from '@/lib/cart'
 import { fetchAddresses, createOrder, confirmPayment, createAddress } from '@/lib/orders'
 import { getMySummary } from '@/lib/mypage'
@@ -40,7 +40,7 @@ interface MemberCouponItem {
   id: number
   couponId: number
   couponName: string
-  discountType: 'FIXED_AMOUNT' | 'PERCENTAGE'
+  discountType: 'FIXED_AMOUNT' | 'PERCENTAGE' | 'FREE_SHIPPING'
   discountValue: number
   minOrderAmount: number | null
   expiresAt: string | null
@@ -48,19 +48,29 @@ interface MemberCouponItem {
   issuedAt: string | null
 }
 
-// Calculate coupon discount against an order total
+// Preview of the coupon discount. Mirrors CouponService.calculateDiscountAmount +
+// OrderPricingCalculator (HALF_UP to the won) so the shown total matches what the
+// server charges; the server remains the source of truth.
 function calcCouponDiscount(coupon: MemberCouponItem, orderAmount: number): number {
   if (coupon.discountType === 'FIXED_AMOUNT') {
     return Math.min(coupon.discountValue, orderAmount)
   }
-  // PERCENTAGE: discountValue is 0-100
-  return Math.floor((orderAmount * coupon.discountValue) / 100)
+  if (coupon.discountType === 'PERCENTAGE') {
+    return Math.round((orderAmount * coupon.discountValue) / 100)
+  }
+  return 0
 }
 
 export default function Checkout() {
   useRequireAuth()
 
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+
+  // One Idempotency-Key per distinct order attempt: a retry after a network error
+  // re-sends the same key (so the server returns the same order instead of creating
+  // a duplicate); changing the cart, address, coupon, or points starts a new attempt.
+  const attemptRef = useRef<{ signature: string; orderKey: string; paymentKey: string } | null>(null)
 
   const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null)
   const [showAddressForm, setShowAddressForm] = useState(false)
@@ -168,22 +178,23 @@ export default function Checkout() {
       if (!cart || cart.items.length === 0) throw new Error('장바구니가 비어있습니다.')
       if (!selectedAddressId) throw new Error('배송지를 선택해주세요.')
 
-      const idempotencyKey = crypto.randomUUID()
+      const body = {
+        items: cart.items.map((item) => ({
+          productOptionId: item.productOptionId,
+          quantity: item.quantity,
+        })),
+        deliveryAddressId: selectedAddressId,
+        couponId: selectedCouponId ?? null,
+        usePointAmount: usePointAmount > 0 ? usePointAmount : null,
+      }
+      const signature = JSON.stringify(body)
+      if (attemptRef.current?.signature !== signature) {
+        attemptRef.current = { signature, orderKey: crypto.randomUUID(), paymentKey: crypto.randomUUID() }
+      }
+      const { orderKey, paymentKey: paymentIdempotencyKey } = attemptRef.current
 
-      const order = await createOrder(
-        {
-          items: cart.items.map((item) => ({
-            productOptionId: item.productOptionId,
-            quantity: item.quantity,
-          })),
-          deliveryAddressId: selectedAddressId,
-          couponId: selectedCouponId ?? null,
-          usePointAmount: usePointAmount > 0 ? usePointAmount : null,
-        },
-        idempotencyKey,
-      )
+      const order = await createOrder(body, orderKey)
 
-      const paymentIdempotencyKey = crypto.randomUUID()
       const confirmed = await confirmPayment(
         {
           orderNo: order.orderNo,
@@ -196,6 +207,11 @@ export default function Checkout() {
       return { orderNo: confirmed.orderNo }
     },
     onSuccess: ({ orderNo }) => {
+      attemptRef.current = null
+      // The order consumed cart lines, points, and possibly a coupon.
+      for (const key of ['cart', 'my-summary', 'mySummary', 'my-coupons', 'myOrders']) {
+        void queryClient.invalidateQueries({ queryKey: [key] })
+      }
       navigate(`/order/complete`, { state: { orderNo } })
     },
     onError: (err: unknown) => {

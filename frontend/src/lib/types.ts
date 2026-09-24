@@ -49,7 +49,8 @@ export interface ProductOptionSummary {
   optionId: number
   optionName: string
   optionPrice: number
-  status: 'ACTIVE' | 'INACTIVE' | 'SOLD_OUT'
+  // ProductOption.OptionStatus, serialized by name
+  status: 'ON_SALE' | 'SOLD_OUT' | 'STOPPED' | 'HIDDEN'
   availableQuantity: number | null
 }
 

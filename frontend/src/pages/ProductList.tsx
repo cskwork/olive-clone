@@ -5,6 +5,7 @@ import { apiGetPage } from '@/lib/api'
 import type { ProductListItem, SortOption, PageMeta } from '@/lib/types'
 import ProductCard from '@/components/ProductCard/ProductCard'
 import FilterBar from '@/components/FilterBar/FilterBar'
+import { useCategoryTree, pouchStyle } from '@/lib/categories'
 import styles from './ProductList.module.css'
 
 const PAGE_SIZE = 20
@@ -28,6 +29,9 @@ export default function ProductList() {
   const [sort, setSort] = useState<SortOption>('POPULAR')
 
   const categoryId = id ?? ''
+  const { data: tree } = useCategoryTree()
+  const category = tree?.categories.find((c) => String(c.id) === categoryId)
+  const categoryName = category?.name
 
   const {
     data,
@@ -81,10 +85,11 @@ export default function ProductList() {
       <div className="app-container">
         <div className={styles.inner}>
           {/* Category header */}
-          <header className={styles.categoryHeader}>
+          <header className={styles.categoryHeader} style={pouchStyle(category?.slug)}>
             <div className={styles.categoryMeta}>
               <h1 className={styles.categoryTitle}>
-                카테고리 상품
+                <span className={styles.categorySwatch} aria-hidden="true" />
+                {categoryName ?? '카테고리'}
               </h1>
               {!isLoading && hasResults && (
                 <p className={styles.totalCount}>
@@ -166,7 +171,7 @@ export default function ProductList() {
           {!isLoading && hasResults && (
             <ul
               className={styles.grid}
-              aria-label="카테고리 상품 목록"
+              aria-label={`${categoryName ?? '카테고리'} 상품 목록`}
             >
               {allProducts.map((product) => (
                 <li key={product.productId}>
