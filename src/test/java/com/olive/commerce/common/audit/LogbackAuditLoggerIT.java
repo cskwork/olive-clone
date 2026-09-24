@@ -8,6 +8,9 @@ import com.olive.commerce.member.MemberLoginHistoryRepository;
 import com.olive.commerce.member.MemberRefreshTokenRepository;
 import com.olive.commerce.member.MemberRepository;
 import org.junit.jupiter.api.Test;
+import ch.qos.logback.classic.LoggerContext;
+import ch.qos.logback.core.rolling.RollingFileAppender;
+import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -58,8 +61,17 @@ class LogbackAuditLoggerIT {
             MDC.clear();
         }
 
+        // Resolve the file the audit appender is actually writing to. Spring Boot
+        // initializes Logback once per JVM, so when another test context starts first
+        // (test order differs between machines) olive.audit.dir from this class is not
+        // applied and the file lives under the default log/ directory instead.
+        LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
+        RollingFileAppender<?> appender = (RollingFileAppender<?>)
+            context.getLogger("olive.audit").getAppender("AUDIT_FILE");
+        assertThat(appender).as("AUDIT_FILE appender").isNotNull();
         String today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-        Path log = Paths.get("build/tmp/audit-it", "audit-" + today + ".log");
+        Path log = Paths.get(appender.getFile());
+        assertThat(log.getFileName().toString()).isEqualTo("audit-" + today + ".log");
         assertThat(log).exists();
 
         List<String> lines = Files.readAllLines(log);
