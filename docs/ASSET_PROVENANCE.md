@@ -28,10 +28,25 @@ Brand logo SVGs use seeded catalog brand names and slugs from the Flyway demo
 migrations, but the artwork is generic and does not copy official brand logos.
 Banners and category tiles are synthetic storefront placeholders.
 
-## Screenshot
+## Storefront Name, Wordmark, and Fonts
+
+The storefront name **결 GYEOL MARKET**, its wordmark (the syllable 결 set in a
+crimped pouch chip), and `frontend/public/favicon.svg` are original to this
+project: hand-written SVG and CSS, no generated or third-party artwork. An
+earlier version of the storefront used a retailer-like name and lime-green brand
+color; both were removed so the UI carries no third-party brand identity.
+
+Fonts are self-hosted from npm packages under the SIL Open Font License 1.1:
+Pretendard (`pretendard`) for UI text and Black Han Sans
+(`@fontsource/black-han-sans`) for the wordmark and display headings.
+
+## Screenshots
 
 `docs/assets/screenshots/commerce-catalog-console.png` is a browser screenshot of
 the local Thymeleaf demo UI running against the seeded local catalog.
+`storefront-desktop.png` and `storefront-mobile.png` are Playwright screenshots
+of the static storefront demo build (`npm run build:demo`) at 1440×900 and
+390×844.
 
 ## Production Replacement
 
