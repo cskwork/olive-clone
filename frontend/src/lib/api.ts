@@ -1,6 +1,15 @@
 import type { ApiResponse, PageMeta } from './types'
+import { IS_DEMO } from './demo'
+import { demoFetch } from '@/demo/mockApi'
 
 const BASE = '/api'
+
+// Demo builds answer every /api call in the browser from seed-derived fixtures;
+// real builds hit the Spring Boot backend. Everything above the transport
+// (envelopes, 401 refresh, error mapping) is shared.
+const apiFetch: (url: string, init?: RequestInit) => Promise<Response> = IS_DEMO
+  ? demoFetch
+  : (url, init) => fetch(url, init)
 
 /** Raised when the backend returns an error envelope or a non-2xx status. */
 export class ApiError extends Error {
@@ -26,7 +35,7 @@ let refreshPromise: Promise<boolean> | null = null
 
 async function request<T>(path: string, opts: RequestOptions = {}): Promise<ApiResponse<T>> {
   const token = getAccessToken()
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await apiFetch(`${BASE}${path}`, {
     method: opts.method ?? 'GET',
     headers: {
       Accept: 'application/json',
@@ -46,7 +55,7 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<ApiR
     const refreshed = await refreshPromise
     if (refreshed) {
       const newToken = getAccessToken()
-      const retryRes = await fetch(`${BASE}${path}`, {
+      const retryRes = await apiFetch(`${BASE}${path}`, {
         method: opts.method ?? 'GET',
         headers: {
           Accept: 'application/json',
@@ -94,7 +103,7 @@ async function attemptRefresh(): Promise<boolean> {
   if (!refreshToken) return false
 
   try {
-    const res = await fetch(`${BASE}/auth/refresh`, {
+    const res = await apiFetch(`${BASE}/auth/refresh`, {
       method: 'POST',
       headers: {
         Accept: 'application/json',
@@ -167,7 +176,7 @@ export async function apiPostWithHeaders<T>(
     ...headers,
   })
 
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await apiFetch(`${BASE}${path}`, {
     method: 'POST',
     headers: buildHeaders(getAccessToken()),
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -180,7 +189,7 @@ export async function apiPostWithHeaders<T>(
     }
     const refreshed = await refreshPromise
     if (refreshed) {
-      const retryRes = await fetch(`${BASE}${path}`, {
+      const retryRes = await apiFetch(`${BASE}${path}`, {
         method: 'POST',
         headers: buildHeaders(getAccessToken()),
         body: body !== undefined ? JSON.stringify(body) : undefined,
