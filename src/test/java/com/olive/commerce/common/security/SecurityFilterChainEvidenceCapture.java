@@ -64,7 +64,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class SecurityFilterChainEvidenceCapture {
 
-    private static final Path OUT = Paths.get("docs/OLV-005/qa/ac-evidence.txt");
+    // See AcceptanceCriteriaCapture: build/qa-evidence by default, docs/ on request.
+    private static final Path OUT = Paths.get(
+        System.getProperty("qa.evidenceRoot", "build/qa-evidence"), "OLV-005", "qa", "ac-evidence.txt");
 
     @Autowired
     private MockMvc mockMvc;

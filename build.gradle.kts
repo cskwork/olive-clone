@@ -88,6 +88,9 @@ dependencyManagement {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    // QA evidence capture tests write here; pass -Dqa.evidenceRoot=docs to refresh the
+    // committed evidence under docs/OLV-00x/qa instead of build/.
+    systemProperty("qa.evidenceRoot", System.getProperty("qa.evidenceRoot") ?: "build/qa-evidence")
     // Docker Desktop on macOS exposes the user-facing daemon at ~/.docker/run/docker.sock.
     // Ryuk reaper containers bind-mount whatever DOCKER_HOST points at, so the path must be
     // bind-mountable — docker.raw.sock is private to Docker Desktop and rejects bind mounts.

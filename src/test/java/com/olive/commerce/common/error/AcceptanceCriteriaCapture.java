@@ -30,7 +30,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
     GlobalExceptionHandlerTest.TestController.class})
 class AcceptanceCriteriaCapture {
 
-    private static final Path QA_DIR = Path.of("docs/OLV-004/qa").toAbsolutePath();
+    // Defaults to build/qa-evidence so a plain `./gradlew test` never rewrites tracked
+    // files; refresh the committed copies with `./gradlew test -Dqa.evidenceRoot=docs`.
+    private static final Path QA_DIR = Path.of(
+        System.getProperty("qa.evidenceRoot", "build/qa-evidence"), "OLV-004", "qa").toAbsolutePath();
 
     @Autowired
     private MockMvc mockMvc;
