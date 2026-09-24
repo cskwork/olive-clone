@@ -5,6 +5,7 @@ out/
 
 # Storefront SPA — node deps + generated Vite build output (built by Gradle npmBuild)
 frontend/node_modules/
+frontend/dist/
 src/main/resources/static/app/
 
 # Logs
@@ -21,6 +22,8 @@ src/main/resources/static/app/
 # Local environment & secrets
 .env
 .env.*
+# Non-secret build mode flag for the static storefront demo.
+!frontend/.env.demo
 # 개인 시크릿 오버레이는 application-local-personal.yml 사용 (OLV-002).
 # application-local.yml은 docker-compose 짝꿍의 공식 로컬 프로파일이므로 체크인된다.
 application-local-personal.yml

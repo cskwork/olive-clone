@@ -14,6 +14,8 @@ import MyPage from './pages/MyPage'
 import OrderHistory from './pages/OrderHistory'
 import Wishlist from './pages/Wishlist'
 import NotFound from './pages/NotFound'
+import DemoNotice from './components/DemoNotice/DemoNotice'
+import { IS_DEMO } from './lib/demo'
 
 // Dev page is code-split and excluded from production bundles by Vite's
 // dead-code elimination on the `import.meta.env.DEV` constant.
@@ -21,6 +23,8 @@ const LazyDev = lazy(() => import('./pages/Dev'))
 
 export default function App() {
   return (
+    <>
+    {IS_DEMO && <DemoNotice />}
     <Routes>
       {/* Auth pages: no shared chrome (full-page layouts) */}
       <Route path="/login" element={<Login />} />
@@ -52,5 +56,6 @@ export default function App() {
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
+    </>
   )
 }

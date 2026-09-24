@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { apiPost, setAccessToken, setRefreshToken, ApiError } from '@/lib/api'
 import { mergeAnonymousCart } from '@/lib/cart'
 import type { LoginRequest, LoginResponse } from '@/lib/types'
+import { IS_DEMO } from '@/lib/demo'
+import { DEMO_ACCOUNT } from '@/demo/fixtures'
 import styles from './auth.module.css'
 
 /** Key used by the anonymous cart session on this device. */
@@ -32,8 +34,11 @@ function validate(email: string, password: string): FormErrors {
 
 export default function Login() {
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const location = useLocation()
+  // Pages that bounce anonymous users here pass { from }; send them back after login.
+  const from = (location.state as { from?: string } | null)?.from ?? '/'
+  const [email, setEmail] = useState(IS_DEMO ? DEMO_ACCOUNT.email : '')
+  const [password, setPassword] = useState(IS_DEMO ? DEMO_ACCOUNT.password : '')
   const [errors, setErrors] = useState<FormErrors>({})
   const [globalError, setGlobalError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -65,7 +70,7 @@ export default function Login() {
         // Merge failure is non-fatal — the user still logged in successfully.
       })
 
-      navigate('/')
+      navigate(from, { replace: true })
     } catch (err) {
       if (err instanceof ApiError) {
         setGlobalError(err.message)
@@ -80,11 +85,18 @@ export default function Login() {
   return (
     <div className={styles.page}>
       <div className={styles.card}>
-        <div className={styles.logo}>
-          <span className={styles.logoText}>OLIVE</span>
-        </div>
+        <Link to="/" className={styles.logo} aria-label="결 마켓 홈으로">
+          <span className={styles.logoMark} aria-hidden="true">결</span>
+          <span className={styles.logoText}>GYEOL MARKET</span>
+        </Link>
 
         <h1 className={styles.title}>로그인</h1>
+
+        {IS_DEMO && (
+          <p className={styles.demoHint}>
+            데모 계정이 입력되어 있습니다. 그대로 로그인하거나 아무 이메일로 새로 시작할 수 있습니다.
+          </p>
+        )}
 
         <form className={styles.form} onSubmit={handleSubmit} noValidate>
           {globalError && (
