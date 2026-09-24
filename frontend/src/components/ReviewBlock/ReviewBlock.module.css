@@ -105,14 +105,14 @@
 }
 
 .helpfulBtn:hover {
-  border-color: var(--brand-green);
-  color: var(--brand-green-dark);
+  border-color: var(--action);
+  color: var(--action-strong);
 }
 
 .helpfulBtn.active {
-  border-color: var(--brand-green);
-  color: var(--brand-green-dark);
-  background: var(--brand-green-tint);
+  border-color: var(--action);
+  color: var(--action-strong);
+  background: var(--action-tint);
 }
 
 .helpfulCount {

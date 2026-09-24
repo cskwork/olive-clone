@@ -18,9 +18,21 @@ body {
   font-size: 14px;
   line-height: 1.55;
   color: var(--ink-900);
-  background: var(--white);
+  background: var(--foil);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  font-variant-numeric: tabular-nums;
+  caret-color: var(--action);
+  scrollbar-color: var(--grey-300) var(--foil);
+}
+
+::selection {
+  background: var(--action);
+  color: var(--white);
+}
+
+a:hover {
+  text-underline-offset: 3px;
 }
 
 img,
@@ -56,8 +68,9 @@ ol {
 }
 
 :focus-visible {
-  outline: 2px solid var(--brand-green-dark);
+  outline: 2px solid var(--action);
   outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 h1,

@@ -82,8 +82,8 @@
 }
 
 .filterTabActive {
-  color: var(--brand-green);
-  border-bottom-color: var(--brand-green);
+  color: var(--action);
+  border-bottom-color: var(--action);
   font-weight: var(--fw-semibold);
 }
 
@@ -163,9 +163,9 @@
 }
 
 .detailLink:hover {
-  border-color: var(--brand-green);
-  color: var(--brand-green);
-  background: var(--brand-green-tint);
+  border-color: var(--action);
+  color: var(--action);
+  background: var(--action-tint);
 }
 
 /* Status badges — brand colors, never sale-red for non-price roles */
@@ -192,8 +192,8 @@
 }
 
 .statusPaid {
-  background: var(--brand-green-tint);
-  color: var(--brand-green-dark);
+  background: var(--action-tint);
+  color: var(--action-strong);
 }
 
 .statusPreparing {
@@ -254,8 +254,8 @@
 }
 
 .loadMoreBtn:hover {
-  border-color: var(--brand-green);
-  color: var(--brand-green);
+  border-color: var(--action);
+  color: var(--action);
 }
 
 /* Retry button */
@@ -265,18 +265,18 @@
   justify-content: center;
   height: 44px;
   padding: 0 var(--space-7);
-  border: 1.5px solid var(--brand-green);
+  border: 1.5px solid var(--action);
   border-radius: var(--radius-md);
   font-size: 14px;
   font-weight: var(--fw-semibold);
-  color: var(--brand-green);
+  color: var(--action);
   background: transparent;
   cursor: pointer;
   transition: background var(--dur-base);
 }
 
 .retryBtn:hover {
-  background: var(--brand-green-tint);
+  background: var(--action-tint);
 }
 
 /* Shop CTA link (empty state) */
@@ -285,14 +285,14 @@
   align-items: center;
   height: 44px;
   padding: 0 var(--space-7);
-  border: 2px solid var(--brand-green);
+  border: 2px solid var(--action);
   border-radius: var(--radius-md);
   font-size: 15px;
   font-weight: var(--fw-semibold);
-  color: var(--brand-green);
+  color: var(--action);
   transition: background var(--dur-base);
 }
 
 .shopLink:hover {
-  background: var(--brand-green-tint);
+  background: var(--action-tint);
 }

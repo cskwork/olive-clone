@@ -170,7 +170,7 @@
 }
 
 .freeLabel {
-  color: var(--brand-green);
+  color: var(--action);
   font-weight: var(--fw-semibold);
 }
 
@@ -193,7 +193,7 @@
   justify-content: center;
   height: 52px;
   padding: 0 var(--space-10);
-  background: var(--brand-green);
+  background: var(--action);
   color: var(--white);
   border-radius: var(--radius-md);
   font-size: 16px;
@@ -203,7 +203,7 @@
 }
 
 .continueLink:hover {
-  background: var(--brand-green-dark);
+  background: var(--action-strong);
 }
 
 /* States */

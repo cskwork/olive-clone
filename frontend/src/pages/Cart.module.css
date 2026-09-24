@@ -208,7 +208,7 @@
 }
 
 .freeLabel {
-  color: var(--brand-green);
+  color: var(--action);
   font-weight: var(--fw-semibold);
 }
 
@@ -218,7 +218,7 @@
 }
 
 .shippingFree {
-  color: var(--brand-green);
+  color: var(--action);
   font-weight: var(--fw-semibold);
 }
 
@@ -249,7 +249,7 @@
 .checkoutBtn {
   width: 100%;
   height: 52px;
-  background: var(--brand-green);
+  background: var(--action);
   color: var(--white);
   border-radius: var(--radius-md);
   font-size: 16px;
@@ -258,7 +258,7 @@
 }
 
 .checkoutBtn:hover {
-  background: var(--brand-green-dark);
+  background: var(--action-strong);
 }
 
 /* Empty state */
@@ -291,17 +291,17 @@
   align-items: center;
   height: 44px;
   padding: 0 var(--space-7);
-  border: 2px solid var(--brand-green);
+  border: 2px solid var(--action);
   border-radius: var(--radius-md);
   font-size: 15px;
   font-weight: var(--fw-semibold);
-  color: var(--brand-green);
+  color: var(--action);
   transition: background var(--dur-base);
   margin-top: var(--space-2);
 }
 
 .emptyLink:hover {
-  background: var(--brand-green-tint);
+  background: var(--action-tint);
 }
 
 /* Skeleton */

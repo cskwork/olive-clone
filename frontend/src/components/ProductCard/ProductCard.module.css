@@ -1,10 +1,27 @@
+/* Card = a small pouch: white body, crimped top edge, one-way shadow. */
 .card {
-  display: block;
-  border-radius: var(--radius-md);
-  background: var(--white);
-  transition: box-shadow var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
-  cursor: pointer;
   position: relative;
+  height: 100%;
+  background: var(--white);
+  border-radius: 3px 3px var(--radius-lg) var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  transition: box-shadow var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  inset: -5px 0 auto;
+  height: 6px;
+  background: radial-gradient(circle at 5px 6px, var(--white) 4.5px, transparent 5px) 0 0 / 10px 6px repeat-x;
+  pointer-events: none;
+}
+
+.link {
+  display: block;
+  height: 100%;
+  padding: var(--space-3) var(--space-3) var(--space-2);
+  border-radius: inherit;
 }
 
 @media (hover: hover) {
@@ -19,7 +36,7 @@
   position: relative;
   aspect-ratio: 1 / 1;
   overflow: hidden;
-  background: var(--grey-100);
+  background: var(--foil);
   border-radius: var(--radius-md);
 }
 
@@ -61,7 +78,7 @@
   display: inline-block;
   padding: 2px 6px;
   border-radius: var(--radius-xs);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: var(--fw-bold);
   line-height: 1.5;
   letter-spacing: 0.04em;
@@ -80,20 +97,19 @@
 /* Wishlist heart — top-right */
 .wishlistBtn {
   position: absolute;
-  top: var(--space-3);
-  right: var(--space-3);
+  top: var(--space-5);
+  right: var(--space-5);
   z-index: 1;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(4px);
   transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
-  color: var(--grey-300);
-  min-width: 34px;
+  color: var(--grey-500);
+  box-shadow: 1px 2px 6px rgba(21, 22, 26, 0.12);
 }
 
 .wishlistBtn:hover {
@@ -109,7 +125,7 @@
 
 /* Info block */
 .info {
-  padding: var(--space-3) var(--space-1) var(--space-3);
+  padding: var(--space-4) var(--space-1) var(--space-2);
 }
 
 .brand {

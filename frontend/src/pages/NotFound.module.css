@@ -42,7 +42,7 @@
   justify-content: center;
   height: 44px;
   padding: 0 var(--space-7);
-  background: var(--brand-green);
+  background: var(--action);
   color: var(--white);
   font-size: 14px;
   font-weight: var(--fw-semibold);
@@ -51,5 +51,5 @@
 }
 
 .homeLink:hover {
-  background: var(--brand-green-dark);
+  background: var(--action-strong);
 }

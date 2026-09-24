@@ -74,7 +74,7 @@ export default function OrderComplete() {
           {/* Success icon */}
           <div className={styles.iconWrap} aria-hidden="true">
             <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-              <circle cx="24" cy="24" r="24" fill="var(--brand-green)" />
+              <circle cx="24" cy="24" r="24" fill="var(--action)" />
               <path
                 d="M14 24.5L20.5 31L34 18"
                 stroke="white"
