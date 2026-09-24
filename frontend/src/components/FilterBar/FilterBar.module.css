@@ -13,6 +13,13 @@
   scrollbar-width: none;
 }
 
+/* Line the toolbar up with the 1200px content column on wide screens. */
+@media (min-width: 768px) {
+  .bar {
+    padding-inline: max(var(--space-8), calc((100% - var(--container-max)) / 2 + var(--space-8)));
+  }
+}
+
 .bar::-webkit-scrollbar {
   display: none;
 }
@@ -87,7 +94,7 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: var(--brand-green);
+  background: var(--action);
   color: var(--white);
   font-size: 9px;
   font-weight: var(--fw-bold);

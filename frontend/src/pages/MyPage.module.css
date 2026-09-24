@@ -21,13 +21,13 @@
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: var(--brand-green-tint);
+  background: var(--action-tint);
   border: 2px solid var(--grey-200);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: var(--brand-green-dark);
+  color: var(--action-strong);
 }
 
 .profileInfo {
@@ -48,7 +48,7 @@
   height: 24px;
   padding: 0 var(--space-4);
   border-radius: var(--radius-pill);
-  background: var(--brand-green);
+  background: var(--action);
   color: var(--white);
   font-size: 12px;
   font-weight: var(--fw-bold);
@@ -165,9 +165,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--brand-green-tint);
+  background: var(--action-tint);
   border-radius: var(--radius-md);
-  color: var(--brand-green-dark);
+  color: var(--action-strong);
   flex-shrink: 0;
 }
 
@@ -202,18 +202,18 @@
   justify-content: center;
   height: 44px;
   padding: 0 var(--space-7);
-  border: 1.5px solid var(--brand-green);
+  border: 1.5px solid var(--action);
   border-radius: var(--radius-md);
   font-size: 14px;
   font-weight: var(--fw-semibold);
-  color: var(--brand-green);
+  color: var(--action);
   background: transparent;
   transition: background var(--dur-base);
   cursor: pointer;
 }
 
 .retryBtn:hover {
-  background: var(--brand-green-tint);
+  background: var(--action-tint);
 }
 
 /* Skeleton states */

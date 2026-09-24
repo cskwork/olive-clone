@@ -2,306 +2,254 @@
   padding-bottom: var(--space-12);
 }
 
-/* ===== Hero Banner ===== */
-
-.hero {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-5);
+/* ===== Category pouch rack =====
+ * Each root category is a sealed sheet-mask pouch: crimped top edge (scallop mask),
+ * a tear notch on the right, the category name in the display face, and a white
+ * label window holding the category's lead product. Light falls from the top-left.
+ */
+.rack {
+  padding: var(--space-7) 0 0;
 }
 
 @media (min-width: 768px) {
-  .hero {
-    grid-template-columns: 1fr 340px;
-    gap: var(--space-4);
-    padding: var(--space-5) var(--space-8);
+  .rack {
     max-width: var(--container-max);
     margin: 0 auto;
+    padding: var(--space-9) var(--space-8) 0;
   }
 }
 
-@media (min-width: 1024px) {
-  .hero {
-    grid-template-columns: 1fr 380px;
-    padding: var(--space-6) var(--space-8);
-  }
-}
-
-/* Primary banner */
-.heroPrimary {
-  position: relative;
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  min-height: 200px;
+.rackHead {
   display: flex;
-  align-items: flex-end;
-  padding: var(--space-7);
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-5);
+  padding: 0 var(--space-5);
+  margin-bottom: var(--space-6);
 }
 
 @media (min-width: 768px) {
-  .heroPrimary {
-    min-height: 280px;
-    padding: var(--space-9);
+  .rackHead {
+    padding: 0;
   }
 }
 
-@media (min-width: 1024px) {
-  .heroPrimary {
-    min-height: 340px;
-  }
-}
-
-.heroContent {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.heroEyebrow {
-  font-size: 11px;
+.rackTitle {
+  font-size: 20px;
   font-weight: var(--fw-bold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.heroHeadline {
-  font-size: 32px;
-  font-weight: var(--fw-extrabold);
-  color: var(--white);
   letter-spacing: -0.03em;
-  line-height: 1.1;
-  display: flex;
-  flex-direction: column;
+  text-wrap: balance;
 }
 
 @media (min-width: 768px) {
-  .heroHeadline {
-    font-size: 44px;
+  .rackTitle {
+    font-size: 24px;
   }
 }
 
-.heroHeadlineLine {
-  display: block;
+.rackSearch {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: var(--fw-semibold);
+  color: var(--action);
 }
 
-.heroSub {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.7);
-  line-height: 1.6;
-  max-width: 320px;
+.rackSearch:hover {
+  text-decoration: underline;
+}
+
+/* Mobile: horizontal snap row, each pouch ~78% wide. Desktop: three across. */
+.rackList {
+  display: flex;
+  gap: var(--space-5);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: var(--space-5);
+  padding: var(--space-2) var(--space-5) var(--space-7);
+  scrollbar-width: none;
+}
+
+.rackList::-webkit-scrollbar {
   display: none;
 }
 
-@media (min-width: 640px) {
-  .heroSub {
-    display: block;
-  }
-}
-
-.heroCta {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  background: var(--brand-green);
-  color: var(--white);
-  font-size: 13px;
-  font-weight: var(--fw-bold);
-  padding: var(--space-3) var(--space-6);
-  border-radius: var(--radius-pill);
-  align-self: flex-start;
-  transition: background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
-  margin-top: var(--space-2);
-}
-
-.heroCta:hover {
-  background: var(--brand-green-dark);
-  transform: translateY(-1px);
-}
-
-/* Decorative circles */
-.heroDecoration {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.heroDeco1,
-.heroDeco2,
-.heroDeco3 {
-  position: absolute;
-  border-radius: 50%;
-  opacity: 0.08;
-}
-
-.heroDeco1 {
-  width: 300px;
-  height: 300px;
-  background: var(--white);
-  top: -80px;
-  right: -80px;
-}
-
-.heroDeco2 {
-  width: 160px;
-  height: 160px;
-  background: var(--brand-green);
-  bottom: -40px;
-  right: 120px;
-  opacity: 0.15;
-}
-
-.heroDeco3 {
-  width: 80px;
-  height: 80px;
-  background: var(--white);
-  top: 40px;
-  right: 40%;
-  opacity: 0.1;
-}
-
-/* Secondary column */
-.heroSecondary {
-  display: flex;
-  flex-direction: row;
-  gap: var(--space-3);
-}
-
 @media (min-width: 768px) {
-  .heroSecondary {
-    flex-direction: column;
+  .rackList {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-7);
+    overflow: visible;
+    padding: var(--space-2) 0 var(--space-7);
   }
 }
 
-.heroSecCard {
-  flex: 1;
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  min-height: 130px;
-  display: flex;
-  align-items: flex-end;
-  padding: var(--space-6);
+.pouchItem {
+  flex: 0 0 78%;
+  scroll-snap-align: start;
+  /* Shadow lives on the wrapper: the pouch's own mask would clip it. */
+  filter: drop-shadow(6px 10px 14px rgba(21, 22, 26, 0.16));
+  /* Default pouch ink: white on aqua / rose / violet. */
+  --pouch-ink: var(--white);
+  --pouch-ink-soft: var(--white);
+}
+
+.pouchItem:not([data-pouch='marigold']) {
+  /* Deepen the foot of saturated pouches so white caption text clears 4.5:1. */
+  --pouch-scrim: var(--pouch-deep);
+}
+
+.pouchItem[data-pouch='marigold'] {
+  --pouch-ink: var(--ink-900);
+  --pouch-ink-soft: #3b2a0b;
+}
+
+.pouch {
   position: relative;
-}
-
-@media (min-width: 768px) {
-  .heroSecCard {
-    min-height: 160px;
-    flex: none;
-  }
-}
-
-.heroSecContent {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  position: relative;
-  z-index: 2;
-}
-
-.heroSecEyebrow {
-  font-size: 10px;
-  font-weight: var(--fw-bold);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.heroSecHeadline {
-  font-size: 18px;
-  font-weight: var(--fw-extrabold);
-  color: var(--white);
-  letter-spacing: -0.02em;
-  line-height: 1.15;
-  display: flex;
-  flex-direction: column;
-}
-
-@media (min-width: 768px) {
-  .heroSecHeadline {
-    font-size: 22px;
-  }
-}
-
-.heroSecCta {
-  display: inline-flex;
-  align-items: center;
-  font-size: 11px;
-  font-weight: var(--fw-bold);
-  color: var(--white);
-  background: rgba(255, 255, 255, 0.2);
-  padding: 4px var(--space-4);
-  border-radius: var(--radius-pill);
-  align-self: flex-start;
-  transition: background var(--dur-fast);
-  margin-top: var(--space-1);
-}
-
-.heroSecCta:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-/* Quick links grid */
-.heroQuickLinks {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-2);
-  flex: 1;
+  grid-template-rows: auto auto 1fr auto;
+  gap: var(--space-3);
+  height: clamp(340px, 58vh, 520px);
+  padding: var(--space-9) var(--space-6) var(--space-6);
+  color: var(--pouch-ink);
+  background:
+    linear-gradient(to top, var(--pouch-scrim, transparent) 0, transparent 34%),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0) 38%),
+    var(--pouch, var(--pouch-violet));
+  border-radius: 4px 4px 22px 22px;
+  /* Crimped seal: scallop row along the top + solid body below it. */
+  -webkit-mask:
+    radial-gradient(circle at 7px 0, transparent 5.5px, #000 6px) 0 0 / 14px 12px repeat-x,
+    linear-gradient(#000, #000) 0 11px / 100% calc(100% - 11px) no-repeat;
+  mask:
+    radial-gradient(circle at 7px 0, transparent 5.5px, #000 6px) 0 0 / 14px 12px repeat-x,
+    linear-gradient(#000, #000) 0 11px / 100% calc(100% - 11px) no-repeat;
+  transition: transform var(--dur-base) var(--ease-out);
 }
 
-@media (min-width: 768px) {
-  .heroQuickLinks {
-    grid-template-columns: repeat(4, 1fr);
-    gap: var(--space-3);
-  }
+/* Heat-seal line under the crimp and the tear notch on the right edge. */
+.pouch::before {
+  content: '';
+  position: absolute;
+  inset: 22px 0 auto;
+  height: 0;
+  border-top: 1.5px dashed color-mix(in srgb, var(--pouch-ink) 38%, transparent);
 }
 
-.quickLink {
+.pouch::after {
+  content: '';
+  position: absolute;
+  top: 34px;
+  right: -7px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--foil);
+}
+
+.pouch:hover {
+  transform: translateY(-4px) rotate(-0.6deg);
+}
+
+.pouch:focus-visible {
+  outline-offset: 4px;
+}
+
+.pouchName {
+  font-family: var(--font-display);
+  font-size: clamp(40px, 11vw, 64px);
+  line-height: 1.02;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.pouchCount {
+  justify-self: start;
+  padding: 3px var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--white);
+  color: var(--pouch-deep, var(--ink-900));
+  font-size: 12px;
+  font-weight: var(--fw-bold);
+}
+
+.pouchWindow {
+  align-self: center;
+  justify-self: center;
+  width: min(100%, 220px);
+  aspect-ratio: 1;
+  padding: var(--space-3);
+  background: var(--white);
+  border-radius: 14px;
+  box-shadow: inset 0 0 0 1px rgba(21, 22, 26, 0.06), 3px 6px 14px rgba(21, 22, 26, 0.14);
+}
+
+.pouchImg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+.pouchFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.pouchLeadWrap {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  background: var(--grey-100);
-  border-radius: var(--radius-md);
-  padding: var(--space-4) var(--space-3);
-  transition: background var(--dur-fast) var(--ease-out);
-  text-align: center;
+  gap: 2px;
+  min-width: 0;
 }
 
-.quickLink:hover {
-  background: var(--brand-green-tint);
+.pouchPrice {
+  font-family: var(--font-display);
+  font-size: 24px;
+  line-height: 1.1;
+  color: var(--pouch-ink);
 }
 
-.quickLink:hover .quickLinkIcon {
-  color: var(--brand-green-dark);
-}
-
-.quickLinkIcon {
-  color: var(--ink-700);
-  transition: color var(--dur-fast);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.quickLinkLabel {
-  font-size: 11px;
-  font-weight: var(--fw-medium);
-  color: var(--ink-700);
+.pouchLead {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: var(--fw-semibold);
+  color: var(--pouch-ink);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* ===== Product Rails ===== */
+.pouchGo {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--action);
+  color: var(--white);
+  box-shadow: 2px 4px 10px rgba(21, 22, 26, 0.24);
+  transition: transform var(--dur-base) var(--ease-out);
+}
+
+.pouch:hover .pouchGo {
+  transform: translateX(3px);
+}
+
+.pouchSkeleton {
+  display: block;
+  height: clamp(340px, 58vh, 520px);
+  border-radius: 4px 4px 22px 22px;
+}
 
 .railsContainer {
   display: flex;
   flex-direction: column;
   gap: var(--space-10);
-  padding-top: var(--space-10);
+  padding: var(--space-8) 0 var(--space-12);
 }
 
 .rail {
@@ -340,31 +288,19 @@
   }
 }
 
-.railBadge {
-  display: inline-block;
-  font-size: 10px;
-  font-weight: var(--fw-bold);
-  color: var(--white);
-  background: var(--sale-red);
-  padding: 2px 6px;
-  border-radius: var(--radius-xs);
-  letter-spacing: 0.04em;
-}
-
 .railMore {
   display: flex;
   align-items: center;
   gap: 2px;
   font-size: 12px;
-  font-weight: var(--fw-medium);
-  color: var(--grey-500);
+  font-weight: var(--fw-semibold);
+  color: var(--action);
   white-space: nowrap;
-  transition: color var(--dur-fast) var(--ease-out);
   flex-shrink: 0;
 }
 
 .railMore:hover {
-  color: var(--ink-900);
+  text-decoration: underline;
 }
 
 /* Rail scroll wrapper: horizontal on mobile, unset on desktop */

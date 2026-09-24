@@ -25,10 +25,24 @@
 }
 
 .categoryTitle {
-  font-size: 20px;
-  font-weight: var(--fw-bold);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 400;
   color: var(--ink-900);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
+}
+
+/* Mini pouch in the category's color, carried over from the home rack. */
+.categorySwatch {
+  width: 18px;
+  height: 22px;
+  border-radius: 0 0 4px 4px;
+  background: var(--pouch, var(--pouch-violet));
+  -webkit-mask: radial-gradient(circle at 3px 0, transparent 2.4px, #000 2.8px) 0 0 / 6px 100% repeat-x;
+  mask: radial-gradient(circle at 3px 0, transparent 2.4px, #000 2.8px) 0 0 / 6px 100% repeat-x;
 }
 
 .totalCount {
@@ -82,7 +96,7 @@
 .retryBtn {
   margin-top: var(--space-3);
   padding: var(--space-3) var(--space-7);
-  background: var(--brand-green);
+  background: var(--action);
   color: var(--white);
   border-radius: var(--radius-pill);
   font-size: 14px;
@@ -92,7 +106,7 @@
 }
 
 .retryBtn:hover {
-  background: var(--brand-green-dark);
+  background: var(--action-strong);
 }
 
 /* ── Load more ───────────────────────────────────────────────────────────── */
@@ -116,8 +130,8 @@
 }
 
 .loadMoreBtn:hover:not(:disabled) {
-  border-color: var(--brand-green);
-  color: var(--brand-green-dark);
+  border-color: var(--action);
+  color: var(--action-strong);
 }
 
 .loadMoreBtn:disabled {

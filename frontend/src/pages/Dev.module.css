@@ -5,7 +5,7 @@
 }
 
 .header {
-  border-bottom: 2px solid var(--brand-green);
+  border-bottom: 2px solid var(--action);
   padding-bottom: var(--space-6);
   margin-bottom: var(--space-8);
 }
@@ -37,7 +37,7 @@
   letter-spacing: -0.02em;
   padding: var(--space-2) var(--space-4);
   background: var(--grey-100);
-  border-left: 3px solid var(--brand-green);
+  border-left: 3px solid var(--action);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 

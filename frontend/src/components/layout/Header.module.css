@@ -4,7 +4,8 @@
   position: sticky;
   top: 0;
   z-index: var(--z-header);
-  background: var(--ink-900);
+  background: var(--white);
+  border-bottom: 1px solid var(--foil-edge);
 }
 
 /* ---- Top bar ---- */
@@ -32,12 +33,42 @@
   align-items: center;
 }
 
+/* Wordmark: "결" set in the display face inside a crimped pouch chip, then the latin name. */
 .logoText {
-  font-size: 20px;
-  font-weight: var(--fw-extrabold);
-  color: var(--brand-green);
-  letter-spacing: -0.03em;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
   line-height: 1;
+  color: var(--ink-900);
+}
+
+.logoMark {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 32px;
+  padding-top: 3px;
+  font-family: var(--font-display);
+  font-size: 19px;
+  color: var(--white);
+  background: var(--pouch-aqua);
+  border-radius: 0 0 6px 6px;
+  -webkit-mask: radial-gradient(circle at 3px 0, transparent 2.6px, #000 3px) 0 0 / 6px 100% repeat-x;
+  mask: radial-gradient(circle at 3px 0, transparent 2.6px, #000 3px) 0 0 / 6px 100% repeat-x;
+  box-shadow: var(--shadow-card);
+}
+
+.logoWord {
+  font-family: var(--font-display);
+  font-size: 15px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  .logoWord {
+    font-size: 17px;
+  }
 }
 
 /* Search bar */
@@ -57,10 +88,17 @@
 .searchForm {
   display: flex;
   align-items: center;
-  background: var(--white);
-  border-radius: var(--radius-sm);
+  background: var(--foil);
+  border: 1px solid var(--foil-edge);
+  border-radius: var(--radius-pill);
   overflow: hidden;
-  height: 36px;
+  height: 40px;
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+
+.searchForm:focus-within {
+  background: var(--white);
+  border-color: var(--action);
 }
 
 .searchInput {
@@ -103,6 +141,18 @@
   margin-left: auto;
 }
 
+/* Phones: the bottom tab bar already carries 마이 / 찜 / 검색, so the top bar keeps
+   only the cart (icon only) next to the menu button. */
+@media (max-width: 767px) {
+  .actions > :not(.cartAction) {
+    display: none;
+  }
+
+  .actions .iconBtnLabel {
+    display: none;
+  }
+}
+
 .iconBtn {
   display: flex;
   flex-direction: column;
@@ -110,7 +160,7 @@
   justify-content: center;
   gap: 2px;
   padding: var(--space-2) var(--space-3);
-  color: var(--white);
+  color: var(--ink-700);
   min-width: var(--touch-target);
   min-height: var(--touch-target);
   border-radius: var(--radius-sm);
@@ -120,7 +170,7 @@
 }
 
 .iconBtn:hover {
-  color: var(--brand-green);
+  color: var(--action);
 }
 
 /* Cart icon wrapper for badge positioning */
@@ -154,6 +204,21 @@
   white-space: nowrap;
 }
 
+.mobileSearch {
+  display: grid;
+  place-items: center;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  color: var(--ink-900);
+  flex-shrink: 0;
+}
+
+@media (min-width: 768px) {
+  .mobileSearch {
+    display: none;
+  }
+}
+
 /* Hamburger (mobile) */
 .hamburger {
   display: flex;
@@ -161,8 +226,7 @@
   justify-content: center;
   width: var(--touch-target);
   height: var(--touch-target);
-  color: var(--white);
-  margin-left: auto;
+  color: var(--ink-900);
   flex-shrink: 0;
 }
 
@@ -175,7 +239,7 @@
 /* ---- Category nav ---- */
 .catNav {
   background: var(--white);
-  border-bottom: 1px solid var(--grey-200);
+  border-top: 1px solid var(--foil-edge);
   display: none;
 }
 
@@ -207,6 +271,7 @@
 .catLink {
   display: flex;
   align-items: center;
+  gap: var(--space-3);
   height: 44px;
   padding: 0 var(--space-5);
   font-size: 13px;
@@ -218,8 +283,16 @@
 }
 
 .catLink:hover {
-  color: var(--brand-green-dark);
-  border-bottom-color: var(--brand-green);
+  color: var(--ink-900);
+  border-bottom-color: var(--pouch, var(--action));
+}
+
+/* Pouch swatch: each category carries its pouch color into the nav. */
+.catSwatch {
+  width: 8px;
+  height: 10px;
+  border-radius: 0 0 2px 2px;
+  background: var(--pouch, var(--grey-300));
 }
 
 /* ---- Mega-menu ---- */
@@ -256,8 +329,8 @@
 }
 
 .megaLink:hover {
-  background: var(--brand-green-tint);
-  color: var(--brand-green-dark);
+  background: var(--action-tint);
+  color: var(--action-strong);
 }
 
 /* ---- Mobile drawer overlay ---- */
@@ -389,7 +462,7 @@
 }
 
 .drawerCatLink:hover {
-  color: var(--brand-green-dark);
+  color: var(--action-strong);
 }
 
 .drawerSubList {
@@ -411,8 +484,8 @@
 }
 
 .drawerSubLink:hover {
-  background: var(--brand-green-tint);
-  color: var(--brand-green-dark);
+  background: var(--action-tint);
+  color: var(--action-strong);
 }
 
 .drawerMember {
@@ -439,7 +512,7 @@
 }
 
 .drawerMemberLink:hover {
-  color: var(--brand-green-dark);
+  color: var(--action-strong);
 }
 
 /* ---- Mobile bottom tab bar ---- */
@@ -479,11 +552,11 @@
 }
 
 .tabItem.active {
-  color: var(--brand-green-dark);
+  color: var(--action-strong);
 }
 
 .tabItem:hover {
-  color: var(--brand-green-dark);
+  color: var(--action-strong);
 }
 
 .tabLabel {

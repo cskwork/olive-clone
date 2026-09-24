@@ -74,9 +74,10 @@ export default function Signup() {
   return (
     <div className={styles.page}>
       <div className={styles.card}>
-        <div className={styles.logo}>
-          <span className={styles.logoText}>OLIVE</span>
-        </div>
+        <Link to="/" className={styles.logo} aria-label="결 마켓 홈으로">
+          <span className={styles.logoMark} aria-hidden="true">결</span>
+          <span className={styles.logoText}>GYEOL MARKET</span>
+        </Link>
 
         <h1 className={styles.title}>회원가입</h1>
 

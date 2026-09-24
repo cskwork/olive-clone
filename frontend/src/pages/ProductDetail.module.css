@@ -204,11 +204,11 @@
 .cartBtn {
   flex: 1;
   height: 52px;
-  border: 2px solid var(--brand-green);
+  border: 2px solid var(--action);
   border-radius: var(--radius-md);
   font-size: 15px;
   font-weight: var(--fw-semibold);
-  color: var(--brand-green);
+  color: var(--action);
   background: var(--white);
   transition:
     background var(--dur-base),
@@ -216,7 +216,7 @@
 }
 
 .cartBtn:hover:not(:disabled) {
-  background: var(--brand-green-tint);
+  background: var(--action-tint);
 }
 
 .cartBtn:disabled {
@@ -231,12 +231,12 @@
   font-size: 15px;
   font-weight: var(--fw-semibold);
   color: var(--white);
-  background: var(--brand-green);
+  background: var(--action);
   transition: background var(--dur-base);
 }
 
 .buyBtn:hover:not(:disabled) {
-  background: var(--brand-green-dark);
+  background: var(--action-strong);
 }
 
 .buyBtn:disabled {
@@ -262,7 +262,7 @@
   color: var(--ink-900);
   margin-bottom: var(--space-5);
   padding-bottom: var(--space-4);
-  border-bottom: 2px solid var(--brand-green);
+  border-bottom: 2px solid var(--action);
   display: inline-block;
 }
 
@@ -333,11 +333,11 @@
 .stickyCartBtn {
   flex: 1;
   height: 40px;
-  border: 2px solid var(--brand-green);
+  border: 2px solid var(--action);
   border-radius: var(--radius-sm);
   font-size: 14px;
   font-weight: var(--fw-semibold);
-  color: var(--brand-green);
+  color: var(--action);
   background: var(--white);
 }
 
@@ -348,7 +348,7 @@
   font-size: 14px;
   font-weight: var(--fw-semibold);
   color: var(--white);
-  background: var(--brand-green);
+  background: var(--action);
 }
 
 /* Toast */
@@ -428,7 +428,7 @@
   color: var(--ink-900);
   display: inline-block;
   padding-bottom: var(--space-1);
-  border-bottom: 2px solid var(--brand-green);
+  border-bottom: 2px solid var(--action);
 }
 
 .reviewsSummary {
@@ -494,8 +494,8 @@
 }
 
 .loadMoreBtn:hover:not(:disabled) {
-  border-color: var(--brand-green);
-  background: var(--brand-green-tint);
+  border-color: var(--action);
+  background: var(--action-tint);
 }
 
 .loadMoreBtn:disabled {

@@ -155,7 +155,7 @@ export default function MyPage() {
             label="포인트"
             value={formatKrw(summary.pointBalance)}
             unit="P"
-            accentColor="var(--brand-green)"
+            accentColor="var(--action)"
           />
           <div className={styles.statDivider} aria-hidden="true" />
           <StatCard

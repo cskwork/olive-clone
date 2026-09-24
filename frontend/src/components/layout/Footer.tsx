@@ -1,96 +1,62 @@
 import { Link } from 'react-router-dom'
 import styles from './Footer.module.css'
 
-interface FooterLink {
-  label: string
-  href: string
-  external?: boolean
-}
+const REPO_URL = 'https://github.com/cskwork/olive-clone'
 
-interface FooterColumn {
-  title: string
-  links: FooterLink[]
-}
+const SHOP_LINKS = [
+  { label: '전체 상품 검색', to: '/search' },
+  { label: '장바구니', to: '/cart' },
+  { label: '주문 내역', to: '/orders' },
+  { label: '마이페이지', to: '/mypage' },
+]
 
-const LINK_COLUMNS: FooterColumn[] = [
-  {
-    title: '고객센터',
-    links: [
-      { label: '자주 묻는 질문', href: '#' },
-      { label: '1:1 문의', href: '#' },
-      { label: '공지사항', href: '#' },
-    ],
-  },
-  {
-    title: '이용안내',
-    links: [
-      { label: '이용약관', href: '#' },
-      { label: '개인정보처리방침', href: '#' },
-      { label: '배송안내', href: '#' },
-      { label: '교환/반품 안내', href: '#' },
-    ],
-  },
-  {
-    title: '쇼핑',
-    links: [
-      { label: '전체 상품', href: '/search' },
-      { label: '랭킹', href: '/' },
-      { label: '마이페이지', href: '/mypage' },
-      { label: '주문 내역', href: '/orders' },
-    ],
-  },
-  {
-    title: '회사소개',
-    links: [
-      { label: '올리브 스토어 소개', href: '#' },
-      { label: '채용정보', href: '#' },
-      { label: '뉴스룸', href: '#' },
-    ],
-  },
+const PROJECT_LINKS = [
+  { label: '소스 코드 (GitHub)', href: REPO_URL },
+  { label: '아키텍처 문서', href: `${REPO_URL}/blob/main/docs/ARCHITECTURE.md` },
+  { label: 'API 개요', href: `${REPO_URL}/blob/main/docs/API_OVERVIEW.md` },
 ]
 
 export default function Footer() {
   return (
     <footer className={styles.footer}>
       <div className={styles.inner}>
-        {/* Link columns */}
         <div className={styles.columns}>
-          {LINK_COLUMNS.map((col) => (
-            <div key={col.title} className={styles.col}>
-              <p className={styles.colTitle}>{col.title}</p>
-              {col.links.map((link) => (
-                link.external ? (
-                  <a
-                    key={link.href}
-                    href={link.href}
-                    className={styles.colLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {link.label}
-                  </a>
-                ) : (
-                  <Link key={`${col.title}-${link.label}`} to={link.href} className={styles.colLink}>
-                    {link.label}
-                  </Link>
-                )
-              ))}
-            </div>
-          ))}
+          <nav className={styles.col} aria-label="쇼핑">
+            <p className={styles.colTitle}>쇼핑</p>
+            {SHOP_LINKS.map((link) => (
+              <Link key={link.to} to={link.to} className={styles.colLink}>
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+          <nav className={styles.col} aria-label="프로젝트">
+            <p className={styles.colTitle}>프로젝트</p>
+            {PROJECT_LINKS.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                className={styles.colLink}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {link.label}
+              </a>
+            ))}
+          </nav>
         </div>
 
-        {/* Company info */}
         <div className={styles.company}>
-          <p className={styles.brand}>OLIVE</p>
+          <p className={styles.brand}>
+            <span className={styles.brandMark} aria-hidden="true">결</span>
+            GYEOL MARKET
+          </p>
           <p className={styles.info}>
-            올리브 스토어 · 자가 호스팅 커머스 데모<br />
-            올리브영(Olive Young)의 UI/UX를 학습 목적으로 재현한
-            오픈소스 클론이며, 실제 브랜드와 제휴·연관이 없습니다.<br />
-            고객센터: 1599-0000 (데모)<br />
-            운영시간: 평일 09:00 ~ 18:00
+            결 마켓은 Spring Boot 모듈러 모놀리스 백엔드와 React 스토어프론트로 만든
+            포트폴리오용 데모 쇼핑몰입니다. 실제 판매·배송·결제는 이루어지지 않으며,
+            상품 이미지는 생성된 샘플이고 어떤 유통사·브랜드와도 제휴 관계가 없습니다.
           </p>
           <p className={styles.copyright}>
-            &copy; {new Date().getFullYear()} 올리브 스토어 &mdash; Olive Young clone demo (비제휴)
+            &copy; {new Date().getFullYear()} GYEOL MARKET demo · MIT License
           </p>
         </div>
       </div>

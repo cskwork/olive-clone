@@ -153,16 +153,16 @@
   align-items: center;
   height: 44px;
   padding: 0 var(--space-7);
-  border: 2px solid var(--brand-green);
+  border: 2px solid var(--action);
   border-radius: var(--radius-md);
   font-size: 15px;
   font-weight: var(--fw-semibold);
-  color: var(--brand-green);
+  color: var(--action);
   transition: background var(--dur-base);
 }
 
 .browseLink:hover {
-  background: var(--brand-green-tint);
+  background: var(--action-tint);
 }
 
 .retryBtn {
@@ -171,16 +171,16 @@
   justify-content: center;
   height: 44px;
   padding: 0 var(--space-7);
-  border: 1.5px solid var(--brand-green);
+  border: 1.5px solid var(--action);
   border-radius: var(--radius-md);
   font-size: 14px;
   font-weight: var(--fw-semibold);
-  color: var(--brand-green);
+  color: var(--action);
   background: transparent;
   cursor: pointer;
   transition: background var(--dur-base);
 }
 
 .retryBtn:hover {
-  background: var(--brand-green-tint);
+  background: var(--action-tint);
 }

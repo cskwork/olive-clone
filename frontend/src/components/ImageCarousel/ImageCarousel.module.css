@@ -80,7 +80,7 @@
 }
 
 .dot.active {
-  background: var(--brand-green);
+  background: var(--action);
   width: 16px;
   border-radius: var(--radius-pill);
 }
@@ -120,7 +120,7 @@
 }
 
 .thumb.active {
-  border-color: var(--brand-green);
+  border-color: var(--action);
 }
 
 .thumbImage {
