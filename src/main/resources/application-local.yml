@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/commerce
-    username: commerce
-    password: commerce
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/commerce}
+    username: ${DB_USERNAME:commerce}
+    password: ${DB_PASSWORD:commerce}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -13,19 +13,19 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
       timeout: 2s
       connect-timeout: 2s
 
 aws:
   s3:
     endpoint: http://localhost:4566
-    access-key: test
-    secret-key: test
+    access-key: ${AWS_ACCESS_KEY_ID:test}
+    secret-key: ${AWS_SECRET_ACCESS_KEY:test}
 
 olive:
   pg:
     provider: mock
   opensearch:
-    uris: http://localhost:9200
+    uris: ${OPENSEARCH_URIS:http://localhost:9200}
