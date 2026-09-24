@@ -77,16 +77,16 @@ class LogbackAuditLoggerIT {
         List<String> lines = Files.readAllLines(log);
         assertThat(lines).isNotEmpty();
 
-        // 마지막 줄이 우리가 쓴 라인이라고 단정할 수는 없으므로 LOGIN_SUCCESS 이벤트만 필터.
+        // The file can be shared with other tests' audit lines (including other
+        // LOGIN_SUCCESS events), so pick ours by the unique traceId set above.
         ObjectMapper mapper = new ObjectMapper();
         boolean found = false;
         for (String line : lines) {
             JsonNode node = mapper.readTree(line);
-            if ("LOGIN_SUCCESS".equals(node.path("event").asText())) {
+            if ("22222222-2222-2222-2222-222222222222".equals(node.path("traceId").asText())) {
+                assertThat(node.path("event").asText()).isEqualTo("LOGIN_SUCCESS");
                 assertThat(node.path("memberId").asInt()).isEqualTo(42);
                 assertThat(node.path("ip").asText()).isEqualTo("127.0.0.1");
-                assertThat(node.path("traceId").asText())
-                    .isEqualTo("22222222-2222-2222-2222-222222222222");
                 assertThat(node.has("@timestamp")).isTrue();
                 found = true;
                 break;
