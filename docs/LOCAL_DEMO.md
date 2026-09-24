@@ -2,6 +2,13 @@
 
 This guide starts the public catalog UI and API from a fresh clone.
 
+Only want to see the storefront? Skip the backend entirely:
+
+```bash
+cd frontend && npm ci && npm run build:demo && npm run preview:demo
+# http://localhost:4173 — in-browser mock API over the seed catalog
+```
+
 ## 1. Generate Local JWT Keys
 
 The application signs local JWTs with files under `src/main/resources/keys`.

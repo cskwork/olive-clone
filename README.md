@@ -1,23 +1,125 @@
-# Health & Beauty Commerce
+# GYEOL MARKET · Health & Beauty Commerce
 
-Production-style shopping mall built around health and beauty commerce
-workflows: a Spring Boot modular-monolith backend paired with a React storefront
-SPA. The project demonstrates the architecture behind a modern catalog, cart,
-order, payment, inventory, delivery, review, search, and operations stack, plus
-the customer-facing storefront that drives it.
+[![CI](https://github.com/cskwork/olive-clone/actions/workflows/ci.yml/badge.svg)](https://github.com/cskwork/olive-clone/actions/workflows/ci.yml)
 
-This is an educational portfolio project. It is not affiliated with, endorsed by,
-or connected to any retailer or beauty brand. Demo catalog data and product
-images are for local development and portfolio presentation only.
+A health and beauty shop built as a backend portfolio piece: a Spring Boot 3
+modular monolith (PostgreSQL, Redis, OpenSearch, S3 via LocalStack, Flyway, JWT)
+with a React storefront, **결 GYEOL MARKET**, that drives it end to end: browse,
+search, product detail, cart, idempotent checkout with coupons and points, mock
+payment, order history.
 
-![Catalog console](docs/assets/screenshots/commerce-catalog-console.png)
+The storefront also builds as a static demo that runs without the backend, so
+reviewers can click through the whole purchase flow from a link.
+
+This is an educational project. It is not affiliated with, endorsed by, or
+connected to any retailer or beauty brand. Product names and images are
+generated sample data for local development and portfolio presentation only.
+
+| Desktop (1440×900) | Phone (390×844) |
+| --- | --- |
+| ![Storefront home, desktop](docs/assets/screenshots/storefront-desktop.png) | ![Storefront home, phone](docs/assets/screenshots/storefront-mobile.png) |
+
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph Client
+        SPA["React storefront<br/>(Vite, TanStack Query)"]
+        Demo["Demo build (VITE_DEMO=1)<br/>in-browser mock API"]
+    end
+
+    subgraph App["Spring Boot modular monolith"]
+        direction TB
+        Edge["Security filter chain<br/>JWT RS256 · Bucket4j rate limit · request id"]
+        Mods["Domain modules<br/>member · product · cart · order · payment<br/>inventory · promotion · delivery · review · wishlist"]
+        Outbox[("outbox_events")]
+        Worker["Outbox indexer worker<br/>FOR UPDATE SKIP LOCKED, retry → DLQ"]
+        Batch["Batch jobs<br/>ShedLock"]
+        Edge --> Mods
+        Mods -- "same transaction" --> Outbox
+        Outbox --> Worker
+    end
+
+    PG[("PostgreSQL 16<br/>source of truth, Flyway")]
+    Redis[("Redis<br/>cache-aside, idempotency,<br/>login throttling")]
+    OS[("OpenSearch<br/>search, autocomplete")]
+    S3[("S3 / LocalStack<br/>images")]
+
+    SPA -- "/api/*" --> Edge
+    Mods --> PG
+    Mods --> Redis
+    Mods --> S3
+    Worker --> OS
+    Mods -- "search reads" --> OS
+    Batch --> PG
+```
+
+One deployable, many modules. Each domain package (`member`, `product`, `cart`,
+`order`, `payment`, `inventory`, `promotion`, `delivery`, `review`, `search`,
+`batch`, `wishlist`) owns its entities, repositories, and rules; cross-module work
+goes through services and Spring application events rather than shared tables.
+Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Key Design Decisions
+
+- **Postgres is the only source of truth.** Redis and OpenSearch can be rebuilt
+  from it at any time (`./gradlew reindexProducts`).
+- **Transactional outbox for search indexing.** A product write inserts an
+  `outbox_events` row in the same transaction. A worker polls every second with
+  `SELECT … FOR UPDATE SKIP LOCKED`, bulk-indexes into OpenSearch, marks rows
+  `DONE`, and after 5 failed attempts parks them in a dead-letter state that an
+  admin endpoint can replay. OpenSearch being down never fails or loses a write.
+- **Cache-aside with explicit invalidation.** Product detail, product lists
+  (versioned keys), and the category tree are cached in Redis with short TTLs;
+  admin writes evict or bump the version so the next read is fresh.
+- **Idempotent money paths.** `POST /api/orders` requires an `Idempotency-Key`
+  header (Redis fast path, database uniqueness as the backstop), payment
+  confirmation checks the amount against the order and returns
+  `PAYMENT_AMOUNT_MISMATCH` (422) on tampering, and PG webhooks are de-duplicated
+  with `SETNX`.
+- **Auth.** Stateless RS256 JWT access tokens (30 min) plus 14-day refresh
+  tokens kept server-side as SHA-256 hashes, rotated on every refresh under a row
+  lock (a replayed token is rejected) and revoked on logout. Roles use a hierarchy,
+  login attempts are throttled in Redis, and public auth/catalog/search endpoints
+  are rate-limited with Bucket4j. The storefront shares a single in-flight refresh
+  across concurrent 401s so a rotating refresh token is never spent twice.
+- **One error envelope.** Every response is `{ success, data | error, meta }`
+  with a stable `error.code` and a `traceId` that matches the `X-Request-Id`
+  header and the structured logs.
+- **Tests against real infrastructure.** Integration tests run on Testcontainers
+  (Postgres, Redis, LocalStack, OpenSearch) instead of mocks or H2.
+
+## Storefront Demo (no backend)
+
+`npm run build:demo` builds the storefront with `VITE_DEMO=1`. In that mode every
+`/api` call is answered in the browser by `frontend/src/demo/mockApi.ts`, using a
+catalog copied from the Flyway seed (a test fails if the two drift apart). Cart,
+orders, points, and coupons persist in `localStorage`; a notice at the top of
+every page says so and offers a reset. Real API mode is unchanged.
+
+```bash
+cd frontend
+npm ci
+npm run build:demo        # output: frontend/dist (served at /)
+npm run preview:demo      # http://localhost:4173
+```
+
+Deploying to Vercel: import the repo, set **Root Directory** to `frontend`. The
+committed `frontend/vercel.json` sets the install command (`npm ci`), build
+command (`npm run build:demo`), output directory (`dist`), and the SPA rewrite.
+No environment variables are required (`frontend/.env.demo` sets `VITE_DEMO=1`;
+setting it in the dashboard also works).
+
+Demo login: the form is pre-filled with `demo@example.com` / `demo1234`; any other
+email signs in as a new demo member.
 
 ## What This Shows
 
-Storefront (React SPA at `/app`):
+Storefront (React SPA at `/app`, or standalone in demo mode):
 
-- Anonymous browse to checkout: catalog, product detail, cart, login with
-  anonymous-cart merge, order creation, mock payment, and order complete
+- Browse anonymously, then catalog → product detail → cart → checkout → mock
+  payment → order complete; actions that need an account send you to login and
+  back to where you were
 - Wishlist, my page (points, coupons, order summary), order history, and search
   with filters
 - Single-flight token refresh so an expired session recovers instead of silently
@@ -135,10 +237,11 @@ npm install
 npm run dev      # http://localhost:5173/app
 ```
 
-Type-check the storefront without emitting a build:
+Type-check and run the storefront tests:
 
 ```bash
 npm run typecheck
+npm test         # Vitest: demo API contract + seed-parity checks
 ```
 
 ## Local Demo Data
@@ -154,18 +257,16 @@ More detail: [docs/LOCAL_DEMO.md](docs/LOCAL_DEMO.md)
 ## Running Tests
 
 ```bash
-./gradlew test
+./gradlew test            # 399 backend tests; Docker must be running (Testcontainers)
+cd frontend && npm test   # storefront tests (no Docker)
 ```
 
-The suite uses Testcontainers. Docker must be running.
+GitHub Actions runs both on every push and pull request
+([.github/workflows/ci.yml](.github/workflows/ci.yml)), plus both storefront builds.
 
-## Architecture
-
-The service is a modular monolith. Domain modules communicate through explicit
-services and domain events; asynchronous work uses an outbox table so search
-indexing and aggregate updates can retry without losing source-of-truth data.
-
-Read the architecture guide: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+A few tests capture HTTP evidence files. They write to `build/qa-evidence` by
+default; `./gradlew test -Dqa.evidenceRoot=docs` refreshes the committed copies
+under `docs/OLV-00x/qa`.
 
 ## API Overview
 
@@ -184,6 +285,7 @@ docker compose up -d prometheus grafana
 
 - Prometheus: http://localhost:9090
 - Grafana: http://localhost:3000, default local credentials `admin` / `admin`
+  (override with `GRAFANA_ADMIN_PASSWORD`)
 - k6 scripts: [infra/k6/README.md](infra/k6/README.md)
 
 The Grafana dashboard is provisioned from
@@ -195,7 +297,7 @@ The Grafana dashboard is provisioned from
 - [docs/TECH_STACK.md](docs/TECH_STACK.md): stack choices and why they are here
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): module boundaries and data flow
 - [docs/API_OVERVIEW.md](docs/API_OVERVIEW.md): endpoint groups and sample calls
-- [docs/ASSET_PROVENANCE.md](docs/ASSET_PROVENANCE.md): generated demo image provenance
+- [docs/ASSET_PROVENANCE.md](docs/ASSET_PROVENANCE.md): generated demo image, font, and logo provenance
 - [llm-wiki/INDEX.md](llm-wiki/INDEX.md): deeper implementation notes by domain
 - [infra/k6/README.md](infra/k6/README.md): load-test scripts
 - [CONTRIBUTING.md](CONTRIBUTING.md): contribution and verification workflow
@@ -205,8 +307,7 @@ The Grafana dashboard is provisioned from
 
 This project is a portfolio-grade backend, not a hosted production deployment.
 Before using it for real traffic, replace all local credentials, store JWT keys
-in a secret manager, configure a real PG provider, harden CORS/rate limits, add
-API documentation generation, and review every `TODO` that marks an intentionally
+in a secret manager, configure a real PG provider, harden CORS/rate limits, and review every `TODO` that marks an intentionally
 mocked or simplified integration.
 
 ## License
