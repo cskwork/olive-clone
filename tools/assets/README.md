@@ -22,8 +22,9 @@ when their generated content changes.
 
 Add an object to one of the arrays in `assets.config.json`:
 
-- `brands`: use a real seeded catalog `name` and `slug` from the Flyway seed SQL.
-  `wordmark` controls the generic SVG text style; it must not copy a real logo.
+- `brands`: use a seeded catalog `name` and `slug` as they stand after the Flyway
+  migrations (V20 renames the demo brands to fictional ones). `wordmark` controls
+  the generic SVG text style; never use a real brand name or copy a real logo.
 - `banners`: keep titles generic and avoid real-brand impersonation.
 - `categories`: choose a stable `slug`, Korean `label`, and one of the supported
   geometric icons: `droplet`, `sparkle`, `wave`, `bubble`, `mask`, `leaf`.

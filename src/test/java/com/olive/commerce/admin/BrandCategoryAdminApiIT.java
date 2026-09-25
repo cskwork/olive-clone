@@ -160,7 +160,7 @@ class BrandCategoryAdminApiIT extends PostgresIntegrationSupport {
         mockMvc.perform(post("/api/admin/brands")
                 .with(jwtWithRole(productAdminToken, "PRODUCT_ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(json.writeValueAsString(new BrandCreateRequest("New Name", "thesecret", "logo"))))
+                .content(json.writeValueAsString(new BrandCreateRequest("New Name", "saebomdam", "logo"))))
             .andExpect(status().isConflict())
             .andExpect(jsonPath("$.error.code").value("BRAND_SLUG_DUPLICATE"));
     }
@@ -184,10 +184,10 @@ class BrandCategoryAdminApiIT extends PostgresIntegrationSupport {
         mockMvc.perform(post("/api/admin/brands")
                 .with(jwtWithRole(productAdminToken, "PRODUCT_ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(json.writeValueAsString(new BrandCreateRequest("이니스프리", "innisfree", "logo"))))
+                .content(json.writeValueAsString(new BrandCreateRequest("하람숲", "haramsup", "logo"))))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data.slug").value("innisfree"));
+            .andExpect(jsonPath("$.data.slug").value("haramsup"));
     }
 
     @Test
@@ -195,9 +195,9 @@ class BrandCategoryAdminApiIT extends PostgresIntegrationSupport {
         mockMvc.perform(patch("/api/admin/brands/1")
                 .with(jwtWithRole(productAdminToken, "PRODUCT_ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(json.writeValueAsString(new BrandUpdateRequest("더샘 업데이트", "logo2", "ACTIVE"))))
+                .content(json.writeValueAsString(new BrandUpdateRequest("새봄담 업데이트", "logo2", "ACTIVE"))))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.name").value("더샘 업데이트"));
+            .andExpect(jsonPath("$.data.name").value("새봄담 업데이트"));
     }
 
     @Test

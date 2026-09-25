@@ -31,7 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * - 인증 없이 접근 가능 (public endpoint)
  *
  * Flyway V3 시드 기준:
- *   brand id=1 (더샘/thesecret), product id=1 (선크림, ON_SALE)
+ *   brand id=1 (새봄담/saebomdam), product id=1 (선크림, ON_SALE)
  *   category id=1 (스킨케어) — product 1이 매핑됨
  */
 @SpringBootTest
@@ -115,7 +115,7 @@ class SubResourceProductApiIT extends PostgresIntegrationSupport {
 
     @Test
     void brandProducts_knownId_returnsProductList() throws Exception {
-        // Brand id=1 (더샘/thesecret) has product 1 (선크림) from V3 seed.
+        // Brand id=1 (새봄담/saebomdam) has product 1 (선크림) from V3 seed.
         mockMvc.perform(get("/api/brands/1/products"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))

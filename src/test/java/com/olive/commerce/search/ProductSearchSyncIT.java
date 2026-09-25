@@ -117,7 +117,7 @@ class ProductSearchSyncIT extends PostgresIntegrationSupport {
         assertThat(doc.productName()).contains("선크림");
         assertThat(doc.salePrice()).isEqualTo(20000L);
         assertThat(doc.status()).isEqualTo("ON_SALE");
-        assertThat(doc.brandName()).isEqualTo("더샘");
+        assertThat(doc.brandName()).isEqualTo("새봄담");
         assertThat(doc.categoryNames()).contains("스킨케어");
 
         // outbox row가 DONE 상태인지 확인.

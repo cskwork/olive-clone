@@ -12,46 +12,46 @@
   },
   "brands": [
     {
-      "slug": "thesecret",
-      "name": "더샘",
-      "wordmark": "THE SAEM",
-      "source": "src/main/resources/db/migration/V3__product.sql"
+      "slug": "saebomdam",
+      "name": "새봄담",
+      "wordmark": "SAEBOMDAM",
+      "source": "src/main/resources/db/migration/V20__fictional_demo_brands.sql"
     },
     {
-      "slug": "roundlab",
-      "name": "라운드랩",
-      "wordmark": "ROUND LAB",
-      "source": "src/main/resources/db/migration/V15__demo_catalog_seed.sql"
+      "slug": "dodamlab",
+      "name": "도담랩",
+      "wordmark": "DODAM LAB",
+      "source": "src/main/resources/db/migration/V20__fictional_demo_brands.sql"
     },
     {
-      "slug": "drg",
-      "name": "닥터지",
-      "wordmark": "DR.G",
-      "source": "src/main/resources/db/migration/V15__demo_catalog_seed.sql"
+      "slug": "dermaharang",
+      "name": "더마하랑",
+      "wordmark": "DERMA HARANG",
+      "source": "src/main/resources/db/migration/V20__fictional_demo_brands.sql"
     },
     {
-      "slug": "clio",
-      "name": "클리오",
-      "wordmark": "CLIO",
-      "source": "src/main/resources/db/migration/V15__demo_catalog_seed.sql"
+      "slug": "veloa",
+      "name": "벨로아",
+      "wordmark": "VELOA",
+      "source": "src/main/resources/db/migration/V20__fictional_demo_brands.sql"
     },
     {
-      "slug": "mediheal",
-      "name": "메디힐",
-      "wordmark": "MEDIHEAL",
-      "source": "src/main/resources/db/migration/V15__demo_catalog_seed.sql"
+      "slug": "hilodam",
+      "name": "힐로담",
+      "wordmark": "HILODAM",
+      "source": "src/main/resources/db/migration/V20__fictional_demo_brands.sql"
     },
     {
-      "slug": "aromatica",
-      "name": "아로마티카",
-      "wordmark": "AROMATICA",
-      "source": "src/main/resources/db/migration/V15__demo_catalog_seed.sql"
+      "slug": "solhyang",
+      "name": "솔향공방",
+      "wordmark": "SOLHYANG",
+      "source": "src/main/resources/db/migration/V20__fictional_demo_brands.sql"
     },
     {
-      "slug": "bringgreen",
-      "name": "브링그린",
-      "wordmark": "BRINGGREEN",
-      "source": "src/main/resources/db/migration/V15__demo_catalog_seed.sql"
+      "slug": "greenmaru",
+      "name": "그린마루",
+      "wordmark": "GREENMARU",
+      "source": "src/main/resources/db/migration/V20__fictional_demo_brands.sql"
     }
   ],
   "banners": [
@@ -62,8 +62,8 @@
       "tag": "NEW SEASON"
     },
     {
-      "slug": "today-dream-free-delivery",
-      "title": "오늘드림 무료배송",
+      "slug": "fast-delivery-free-shipping",
+      "title": "빠른배송 무료배송",
       "subtitle": "필요한 뷰티 아이템을 빠르게 받아보세요",
       "tag": "FAST BEAUTY"
     },

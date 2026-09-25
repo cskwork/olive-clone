@@ -1,8 +1,8 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { demoFetch, resetDemoState } from './mockApi'
-import { DEMO_ACCOUNT, DEMO_PRODUCTS } from './fixtures'
+import { DEMO_ACCOUNT, DEMO_BRANDS, DEMO_PRODUCTS } from './fixtures'
 
 type Envelope<T = any> = { success: boolean; data?: T; meta?: { page: number; size: number; total: number }; error?: { code: string } }
 
@@ -26,21 +26,54 @@ describe('demo fixtures stay in sync with the Flyway seed', () => {
   const migration = (name: string) =>
     readFileSync(resolve(process.cwd(), '../src/main/resources/db/migration', name), 'utf8')
 
+  // V20 renames seeded brands, products, and image paths; the fixtures hold the
+  // post-V20 values, so apply its VALUES lists to what V3/V15/V16 inserted.
+  const v20 = migration('V20__fictional_demo_brands.sql')
+  const block = (cte: string) => {
+    const start = v20.indexOf(`WITH ${cte} (`)
+    return v20.slice(start, v20.indexOf('UPDATE', start))
+  }
+  const pairs = (cte: string) => new Map([...block(cte).matchAll(/\('([^']+)', '([^']+)'\)/g)].map(([, a, b]) => [a, b]))
+  const productRenames = pairs('product_renames')
+  const imageRenames = pairs('image_renames')
+  const renamedProduct = (name: string) => productRenames.get(name) ?? name
+  const renamedImage = (url: string) => imageRenames.get(url) ?? url
+
   it('has every V15 product with the same prices', () => {
     const sql = migration('V15__demo_catalog_seed.sql')
     const rows = [...sql.matchAll(/\('(\w+)', '([^']+)', '[^']+', (\d+), (\d+), '[^']+'\)/g)]
     expect(rows).toHaveLength(12)
-    for (const [, , name, base, sale] of rows) {
+    for (const [, , seededName, base, sale] of rows) {
+      const name = renamedProduct(seededName)
       const p = DEMO_PRODUCTS.find((x) => x.name === name)
       expect(p, name).toBeDefined()
       expect([p!.basePrice, p!.salePrice]).toEqual([Number(base), Number(sale)])
     }
   })
 
-  it('uses the same image paths as V16', () => {
+  it('uses the same image paths as V16 after the V20 renames', () => {
     const sql = migration('V16__local_demo_product_images.sql')
+    const thumbs = new Map(
+      [...sql.matchAll(/\('([^']+)', '(\/images\/products\/[^']+)'\)/g)].map(([, name, url]) => [renamedProduct(name), renamedImage(url)]),
+    )
     for (const p of DEMO_PRODUCTS) {
-      expect(sql, p.name).toContain(`('${p.name}', '${p.images[0]}')`)
+      expect(p.images[0], p.name).toBe(thumbs.get(p.name))
+    }
+    const details = [...sql.matchAll(/\(\d, '(\/images\/products\/[^']+)'\)/g)].map(([, url]) => renamedImage(url))
+    expect(DEMO_PRODUCTS[0].images.slice(1)).toEqual([...new Set(details)])
+  })
+
+  it('uses the V20 brand names and slugs', () => {
+    const renames = [...block('brand_renames').matchAll(/\('[^']+', '([^']+)', '([^']+)', '[^']+'\)/g)]
+    expect(renames).toHaveLength(Object.keys(DEMO_BRANDS).length)
+    for (const [, name, slug] of renames) {
+      expect(Object.values(DEMO_BRANDS)).toContainEqual({ name, slug })
+    }
+  })
+
+  it('ships an image file for every product image path', () => {
+    for (const url of DEMO_PRODUCTS.flatMap((p) => p.images)) {
+      expect(existsSync(resolve(process.cwd(), '../src/main/resources/static', url.slice(1))), url).toBe(true)
     }
   })
 })
@@ -71,7 +104,7 @@ describe('demo mock API', () => {
 
   it('runs cart -> order -> payment with coupon, points, and idempotent replay', async () => {
     const auth = await login()
-    await call('POST', '/cart/items', { productOptionId: 4, quantity: 2 }, auth) // 레드 블레미쉬 25,200 x2
+    await call('POST', '/cart/items', { productOptionId: 4, quantity: 2 }, auth) // 카밍 시카 진정 크림 25,200 x2
     const cart = await call('GET', '/cart', undefined, auth)
     expect(cart.env.data.totalAmount).toBe(50400)
 

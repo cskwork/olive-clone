@@ -99,7 +99,7 @@ class BrandCategoryPublicApiIT extends PostgresIntegrationSupport {
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data").isArray())
             .andExpect(jsonPath("$.data.length()").value(7))
-            .andExpect(jsonPath("$.data[0].slug").value("thesecret"));
+            .andExpect(jsonPath("$.data[0].slug").value("saebomdam"));
     }
 
     @Test
