@@ -105,7 +105,7 @@ class AutocompleteApiIT extends PostgresIntegrationSupport {
 
     @Test
     void ac4_english_prefix_isCaseInsensitive() throws Exception {
-        // Brand name "더샘"은 한글이지만, productName에 "SPF50+" 포함 → 대소문자 무관.
+        // Brand name "새봄담"은 한글이지만, productName에 "SPF50+" 포함 → 대소문자 무관.
         mockMvc.perform(get("/api/search/autocomplete").param("prefix", "spf"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))

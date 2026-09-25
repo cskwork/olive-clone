@@ -12,8 +12,9 @@ The storefront also builds as a static demo that runs without the backend, so
 reviewers can click through the whole purchase flow from a link.
 
 This is an educational project. It is not affiliated with, endorsed by, or
-connected to any retailer or beauty brand. Product names and images are
-generated sample data for local development and portfolio presentation only.
+connected to any retailer or beauty brand. Brand names, product names, and
+images are fictional, generated sample data for local development and portfolio
+presentation only.
 
 | Desktop (1440×900) | Phone (390×844) |
 | --- | --- |

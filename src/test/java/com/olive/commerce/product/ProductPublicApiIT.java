@@ -142,7 +142,7 @@ class ProductPublicApiIT extends PostgresIntegrationSupport {
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.productId").value(1))
             .andExpect(jsonPath("$.data.productName").value("키즈 매일 선크림 SPF50+ PA++++"))
-            .andExpect(jsonPath("$.data.brandName").value("더샘"))
+            .andExpect(jsonPath("$.data.brandName").value("새봄담"))
             .andExpect(jsonPath("$.data.salePrice").value(20000))
             .andExpect(jsonPath("$.data.originalPrice").value(25000))
             .andExpect(jsonPath("$.data.discountRate").value(20.0))
@@ -442,7 +442,7 @@ class ProductPublicApiIT extends PostgresIntegrationSupport {
         mockMvc.perform(get("/api/products?brandId=1"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.length()").value(1))
-            .andExpect(jsonPath("$.data[0].brandName").value("더샘"));
+            .andExpect(jsonPath("$.data[0].brandName").value("새봄담"));
     }
 
     @Test

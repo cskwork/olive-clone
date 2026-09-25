@@ -21,8 +21,8 @@ import styles from './Dev.module.css'
 
 const SAMPLE_PRODUCT: ProductListItem = {
   productId: 1,
-  brandName: 'COSRX',
-  productName: '어드밴스드 스네일 96 뮤신 파워 에센스 (달팽이 점액 여과물 96%)',
+  brandName: '새봄담',
+  productName: '히알루론 96 수분 부스팅 에센스 (히알루론산 복합체 96%)',
   salePrice: 18900,
   originalPrice: 25000,
   discountRate: 24,
@@ -34,8 +34,8 @@ const SAMPLE_PRODUCT: ProductListItem = {
 const SAMPLE_PRODUCT_NO_DISCOUNT: ProductListItem = {
   ...SAMPLE_PRODUCT,
   productId: 2,
-  brandName: 'Innisfree',
-  productName: '그린티 씨드 세럼',
+  brandName: '그린마루',
+  productName: '티트리 카밍 트러블 세럼',
   salePrice: 28000,
   originalPrice: 28000,
   discountRate: 0,
@@ -70,7 +70,7 @@ const SAMPLE_OPTIONS: ProductOptionSummary[] = [
 ]
 
 const SAMPLE_FILTERS: AppliedFilter[] = [
-  { id: 'brand-cosrx', label: 'COSRX' },
+  { id: 'brand-saebomdam', label: '새봄담' },
   { id: 'price-under-20k', label: '2만원 이하' },
 ]
 

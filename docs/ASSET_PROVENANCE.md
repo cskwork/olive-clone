@@ -5,13 +5,35 @@ a fresh clone without external image hosting.
 
 ## Product Catalog Images
 
-Images under `src/main/resources/static/images/products/` were generated with
-Codex image generation for this educational demo. They are synthetic catalog
-mockups, resized to 512px PNG files for repository and browser performance.
+The demo catalog uses fictional brands and product names. Migration
+`V20__fictional_demo_brands.sql` renamed the real Korean cosmetics brands and
+product lines that the earlier seed migrations (V3, V15, V16) inserted:
 
-The prompts used product names, short product descriptions, and broad health and
-beauty catalog styling. The prompts explicitly avoided retailer logos,
-watermarks, barcode details, and real trademark logo replication.
+| Seeded brand (removed) | Fictional brand | Slug |
+| --- | --- | --- |
+| 더샘 | 새봄담 | `saebomdam` |
+| 라운드랩 | 도담랩 | `dodamlab` |
+| 닥터지 | 더마하랑 | `dermaharang` |
+| 클리오 | 벨로아 | `veloa` |
+| 메디힐 | 힐로담 | `hilodam` |
+| 아로마티카 | 솔향공방 | `solhyang` |
+| 브링그린 | 그린마루 | `greenmaru` |
+
+Product names that echoed a real product line were renamed too (for example
+`킬래쉬 워터프루프 마스카라 블랙` became `컬링 픽서 워터프루프 마스카라 블랙`);
+generic descriptive names such as `키즈 매일 선크림 SPF50+ PA++++` were kept.
+The earlier migrations still contain the old names because applied Flyway
+migrations are never edited; V20 overwrites them on every database.
+
+The 15 images under `src/main/resources/static/images/products/` were generated
+on 2026-09-25 with GPT Image 2 (ChatGPT Images 2.0, via the local Codex CLI
+`imagegen` tool) and replaced the earlier images, which printed real brand
+names. Each prompt described a square studio packshot for a fictional Korean
+cosmetics brand and allowed only the fictional Latin wordmark (for example
+`SAEBOMDAM`, `VELOA`) as readable text, with no other words, real brand names,
+logos, barcodes, or watermarks. Outputs were checked by eye for stray text,
+resized to 512×512, and quantized with `pngquant` to keep the repository and demo
+bundle small. File names follow `<fictional-brand-slug>-<product>.png`.
 
 These images are not official product photography and do not imply endorsement,
 partnership, inventory, pricing accuracy, or brand affiliation.
@@ -24,8 +46,8 @@ SVG files under `src/main/resources/static/images/brands/`,
 `node tools/assets/generate-assets.mjs` from `tools/assets/assets.config.json`.
 The generator is deterministic, offline, and uses only Node.js built-ins.
 
-Brand logo SVGs use seeded catalog brand names and slugs from the Flyway demo
-migrations, but the artwork is generic and does not copy official brand logos.
+Brand logo SVGs use the fictional catalog brand names and slugs from V20; the
+artwork is generic text and shapes.
 Banners and category tiles are synthetic storefront placeholders.
 
 ## Storefront Name, Wordmark, and Fonts

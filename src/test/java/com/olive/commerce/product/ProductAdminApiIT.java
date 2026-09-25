@@ -119,7 +119,7 @@ class ProductAdminApiIT extends PostgresIntegrationSupport {
     void createProduct_withTwoOptionsAndTwoCategories_returns201() throws Exception {
         // Given: brand id=1, category ids 1,2 exist from Flyway
         var request = new ProductCreateRequest(
-            1L,  // brand_id (더샘)
+            1L,  // brand_id (새봄담)
             "테스트 상품",
             "테스트 상품 설명",
             new BigDecimal("15000"),
@@ -148,7 +148,7 @@ class ProductAdminApiIT extends PostgresIntegrationSupport {
             .andExpect(jsonPath("$.data.basePrice").value(15000))
             .andExpect(jsonPath("$.data.salePrice").value(12000))
             .andExpect(jsonPath("$.data.status").value("DRAFT"))
-            .andExpect(jsonPath("$.data.brandName").value("더샘"))
+            .andExpect(jsonPath("$.data.brandName").value("새봄담"))
             .andExpect(jsonPath("$.data.categories").isArray())
             .andExpect(jsonPath("$.data.categories.length()").value(2))
             .andExpect(jsonPath("$.data.options").isArray())

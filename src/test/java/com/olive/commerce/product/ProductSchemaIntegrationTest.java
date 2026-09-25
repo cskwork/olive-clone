@@ -47,12 +47,12 @@ class ProductSchemaIntegrationTest extends PostgresIntegrationSupport {
         Object[] brand = (Object[]) em.createNativeQuery("""
                 SELECT name, slug, logo_url, status
                 FROM brands
-                WHERE slug = 'thesecret'
+                WHERE slug = 'saebomdam'
                 """).getSingleResult();
 
-        assertThat(brand[0]).isEqualTo("더샘");
-        assertThat(brand[1]).isEqualTo("thesecret");
-        assertThat(brand[2]).isEqualTo("https://s3.local/brands/thesecret.png");
+        assertThat(brand[0]).isEqualTo("새봄담");
+        assertThat(brand[1]).isEqualTo("saebomdam");
+        assertThat(brand[2]).isEqualTo("https://s3.local/brands/saebomdam.png");
         assertThat(brand[3]).isEqualTo("ACTIVE");
     }
 
@@ -84,7 +84,7 @@ class ProductSchemaIntegrationTest extends PostgresIntegrationSupport {
         assertThat(product[1]).isEqualTo("ON_SALE");
         assertThat(product[2]).isEqualTo(new BigDecimal("25000.00"));
         assertThat(product[3]).isEqualTo(new BigDecimal("20000.00"));
-        assertThat(product[4]).isEqualTo("더샘");
+        assertThat(product[4]).isEqualTo("새봄담");
 
         @SuppressWarnings("unchecked")
         List<Object[]> options = em.createNativeQuery("""
@@ -129,7 +129,7 @@ class ProductSchemaIntegrationTest extends PostgresIntegrationSupport {
     void repositoryTest_InsertsProductWithTwoOptionsAndThreeCategories_ReadsBack() {
         // Given: demo brand + categories already seeded
         Long brandId = ((Number) em.createNativeQuery(
-                "SELECT id FROM brands WHERE slug = 'thesecret'"
+                "SELECT id FROM brands WHERE slug = 'saebomdam'"
         ).getSingleResult()).longValue();
 
         // When: product + 2 options + 3 category mappings insert

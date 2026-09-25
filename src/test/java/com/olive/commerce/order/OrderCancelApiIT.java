@@ -164,7 +164,7 @@ class OrderCancelApiIT extends PostgresIntegrationSupport {
             // 브랜드 생성
             long brandId = ((Number) em.createNativeQuery("""
                     INSERT INTO brands (name, slug, logo_url, status)
-                    VALUES ('OLIVE YOUNG', 'olive-young', 'https://s3.local/olive.png', 'ACTIVE')
+                    VALUES ('TEST BRAND', 'test-brand', 'https://s3.local/test-brand.png', 'ACTIVE')
                     RETURNING id
                     """).getSingleResult()).longValue();
 
