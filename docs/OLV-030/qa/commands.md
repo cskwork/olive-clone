@@ -7,7 +7,7 @@ All acceptance criteria satisfied. V4__inventory.sql successfully applied, all 1
 ## Commands Run
 
 ```bash
-cd /Users/danny/Documents/PARA/Resource/olive-clone
+cd ~/Documents/PARA/Resource/olive-clone
 ./gradlew test --tests InventorySchemaIntegrationTest
 ```
 

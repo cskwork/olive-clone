@@ -41,7 +41,7 @@ docker --version
 ## 실행
 
 ```bash
-cd /Users/danny/Documents/PARA/Resource/olive-clone
+cd ~/Documents/PARA/Resource/olive-clone
 
 # 0. 사전 점검 (포트 충돌, CLI 존재, WORKFLOW.md 파싱)
 symphony doctor

@@ -4,7 +4,7 @@
 
 ```bash
 # 전체 검색 관련 테스트 실행
-cd /Users/danny/Documents/PARA/Resource/olive-clone
+cd ~/Documents/PARA/Resource/olive-clone
 ./gradlew test --tests "com.olive.commerce.public_api.*ApiIT" \
                --tests "com.olive.commerce.search.*IT"
 ```

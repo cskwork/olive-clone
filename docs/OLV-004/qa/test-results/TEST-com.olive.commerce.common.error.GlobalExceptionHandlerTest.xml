@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.olive.commerce.common.error.GlobalExceptionHandlerTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-05-10T10:32:21" hostname="chaeseong-gug-ui-MacBookPro.local" time="0.137">
+<testsuite name="com.olive.commerce.common.error.GlobalExceptionHandlerTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-05-10T10:32:21" hostname="redacted-host" time="0.137">
   <properties/>
   <testcase name="uncaughtException_mapsTo500_andHidesStackTrace()" classname="com.olive.commerce.common.error.GlobalExceptionHandlerTest" time="0.066"/>
   <testcase name="businessException_mapsTo404_andReturnsErrorEnvelope()" classname="com.olive.commerce.common.error.GlobalExceptionHandlerTest" time="0.006"/>
@@ -18,7 +18,7 @@
 
  :: Spring Boot ::                (v3.3.5)
 
-2026-05-10 19:32:21.675 INFO  [traceId=] c.o.c.c.e.GlobalExceptionHandlerTest - Starting GlobalExceptionHandlerTest using Java 21.0.11 with PID 59068 (started by danny in /Users/danny/symphony_workspaces/OLV-004)
+2026-05-10 19:32:21.675 INFO  [traceId=] c.o.c.c.e.GlobalExceptionHandlerTest - Starting GlobalExceptionHandlerTest using Java 21.0.11 with PID 59068 (started by cskwork in /Users/<user>/symphony_workspaces/OLV-004)
 2026-05-10 19:32:21.675 INFO  [traceId=] c.o.c.c.e.GlobalExceptionHandlerTest - No active profile set, falling back to 1 default profile: "default"
 2026-05-10 19:32:21.837 INFO  [traceId=] o.s.b.t.m.w.SpringBootMockServletContext - Initializing Spring TestDispatcherServlet ''
 2026-05-10 19:32:21.837 INFO  [traceId=] o.s.t.w.s.TestDispatcherServlet - Initializing Servlet ''
