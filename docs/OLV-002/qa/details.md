@@ -84,7 +84,7 @@ EnvironmentAndSystemPropertyClientProviderStrategy: failed with exception BadReq
 UnixSocketClientProviderStrategy: failed with exception InvalidConfigurationException
 (Could not find unix domain socket). Root cause NoSuchFileException (/var/run/docker.sock)
 DockerDesktopClientProviderStrategy: failed with exception BadRequestException
-(Status 400: {"ID":"","Containers":0,...,"Labels":["com.docker.desktop.address=unix:///Users/danny/Library/Containers/com.docker.docker/Data/docker-cli.sock"],...})
+(Status 400: {"ID":"","Containers":0,...,"Labels":["com.docker.desktop.address=unix:///Users/<user>/Library/Containers/com.docker.docker/Data/docker-cli.sock"],...})
 ```
 
 두 소켓(`docker.raw.sock`, `.docker/run/docker.sock`) 모두 daemon `_ping`/`/info`에는 정상 응답. 그러나 `docker-java` 클라이언트 라이브러리(Testcontainers 1.20.3 종속)가 사용하는 client API 버전 **1.32**가 Docker Desktop 29 daemon이 강제하는 **minimum 1.44**보다 낮아, 클라이언트 버전 협상 단계에서 daemon이 HTTP 400으로 거부.
@@ -92,7 +92,7 @@ DockerDesktopClientProviderStrategy: failed with exception BadRequestException
 | 시도 | 결과 |
 |---|---|
 | Default (build.gradle.kts 자동 socket detection: `docker.raw.sock`) | FAIL — client 1.32 too old |
-| `DOCKER_HOST=unix:///Users/danny/.docker/run/docker.sock` 명시 | FAIL — 동일 사유 |
+| `DOCKER_HOST=unix://$HOME/.docker/run/docker.sock` 명시 | FAIL — 동일 사유 |
 | `TESTCONTAINERS_RYUK_DISABLED=true` + `DOCKER_API_VERSION=1.44` | FAIL — env가 docker-java client 협상에 반영되지 않음 |
 
 → 사용자 환경 변수만으로 우회 불가. 산출물(의존성 버전) 변경 필요.

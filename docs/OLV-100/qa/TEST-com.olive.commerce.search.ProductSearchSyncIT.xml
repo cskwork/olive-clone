@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.olive.commerce.search.ProductSearchSyncIT" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-05-11T12:23:00" hostname="chaeseong-gug-ui-MacBookPro.local" time="3.895">
+<testsuite name="com.olive.commerce.search.ProductSearchSyncIT" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-05-11T12:23:00" hostname="redacted-host" time="3.895">
   <properties/>
   <testcase name="priceUpdate_propagatesNewSalePriceInsideFiveSeconds()" classname="com.olive.commerce.search.ProductSearchSyncIT" time="0.642"/>
   <testcase name="openSearchDown_outboxAttemptsAccumulateAndNeverCrash()" classname="com.olive.commerce.search.ProductSearchSyncIT" time="3.18"/>
@@ -9,7 +9,7 @@
 21:22:46.065 [Test worker] INFO org.testcontainers.images.PullPolicy -- Image pull policy will be performed by: DefaultPullPolicy()
 21:22:46.066 [Test worker] INFO org.testcontainers.utility.ImageNameSubstitutor -- Image name substitution will be performed by: DefaultImageNameSubstitutor (composite of 'ConfigurationFileImageNameSubstitutor' and 'PrefixingImageNameSubstitutor')
 21:22:46.070 [Test worker] INFO org.testcontainers.DockerClientFactory -- Testcontainers version: 1.21.4
-21:22:46.300 [Test worker] INFO org.testcontainers.dockerclient.DockerClientProviderStrategy -- Found Docker environment with Environment variables, system properties and defaults. Resolved dockerHost=unix:///Users/danny/.docker/run/docker.sock
+21:22:46.300 [Test worker] INFO org.testcontainers.dockerclient.DockerClientProviderStrategy -- Found Docker environment with Environment variables, system properties and defaults. Resolved dockerHost=unix:///Users/<user>/.docker/run/docker.sock
 21:22:46.301 [Test worker] INFO org.testcontainers.DockerClientFactory -- Docker host IP address is localhost
 21:22:46.313 [Test worker] INFO org.testcontainers.DockerClientFactory -- Connected to docker: 
   Server Version: 29.1.5
@@ -17,7 +17,7 @@
   Operating System: Docker Desktop
   Total Memory: 15720 MB
   Labels: 
-    com.docker.desktop.address=unix:///Users/danny/Library/Containers/com.docker.docker/Data/docker-cli.sock
+    com.docker.desktop.address=unix:///Users/<user>/Library/Containers/com.docker.docker/Data/docker-cli.sock
 21:22:46.497 [Test worker] INFO tc.testcontainers/ryuk:0.12.0 -- Creating container for image: testcontainers/ryuk:0.12.0
 21:22:46.621 [Test worker] INFO org.testcontainers.utility.RegistryAuthLocator -- Credential helper/store (docker-credential-desktop) does not have credentials for https://index.docker.io/v1/
 21:22:46.701 [Test worker] INFO tc.testcontainers/ryuk:0.12.0 -- Container testcontainers/ryuk:0.12.0 is starting: a31965a49216b352b1ea9c38720bb67c7dc485072fe714d34452678b330e242d
@@ -45,7 +45,7 @@
  :: Spring Boot ::                (v3.3.5)
 
 2026-05-11 21:22:55.541 INFO  [traceId=] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
-2026-05-11 21:22:55.573 INFO  [traceId=] c.o.c.search.ProductSearchSyncIT - Starting ProductSearchSyncIT using Java 21.0.11 with PID 86395 (started by danny in /Users/danny/symphony_workspaces/OLV-100)
+2026-05-11 21:22:55.573 INFO  [traceId=] c.o.c.search.ProductSearchSyncIT - Starting ProductSearchSyncIT using Java 21.0.11 with PID 86395 (started by cskwork in /Users/<user>/symphony_workspaces/OLV-100)
 2026-05-11 21:22:55.574 INFO  [traceId=] c.o.c.search.ProductSearchSyncIT - The following 1 profile is active: "test"
 2026-05-11 21:22:56.096 INFO  [traceId=] o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
 2026-05-11 21:22:56.096 INFO  [traceId=] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
@@ -370,7 +370,7 @@ Caused by: java.net.SocketTimeoutException: 3,000 milliseconds timeout on connec
 	at org.apache.http.impl.nio.reactor.AbstractMultiworkerIOReactor$Worker.run(AbstractMultiworkerIOReactor.java:591)
 	at java.base/java.lang.Thread.run(Thread.java:1583)
 ]]></system-out>
-  <system-err><![CDATA[WARNING: A Java agent has been loaded dynamically (/Users/danny/.gradle/caches/modules-2/files-2.1/net.bytebuddy/byte-buddy-agent/1.14.19/154da3a65b4f4a909d3e5bdec55d1b2b4cbb6ce1/byte-buddy-agent-1.14.19.jar)
+  <system-err><![CDATA[WARNING: A Java agent has been loaded dynamically (/Users/<user>/.gradle/caches/modules-2/files-2.1/net.bytebuddy/byte-buddy-agent/1.14.19/154da3a65b4f4a909d3e5bdec55d1b2b4cbb6ce1/byte-buddy-agent-1.14.19.jar)
 WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
 WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
 WARNING: Dynamic loading of agents will be disallowed by default in a future release

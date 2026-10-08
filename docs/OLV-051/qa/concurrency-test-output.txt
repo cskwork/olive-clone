@@ -12,14 +12,14 @@ Resolve mutations for :processTestResources (Thread[Execution worker Thread 9,5,
 Caching disabled for task ':processTestResources' because:
 Skipping task ':processTestResources' as it is up-to-date.
 Gradle Test Executor 93 started executing tests.
-Starting process 'Gradle Test Executor 93'. Working directory: /Users/danny/Documents/PARA/Resource/olive-clone Command: /Users/danny/.gradle/jdks/eclipse_adoptium-21-aarch64-os_x.2/jdk-21.0.11+10/Contents/Home/bin/java -Ddocker.host=unix:///Users/danny/.docker/run/docker.sock -Dorg.gradle.internal.worker.tmpdir=/Users/danny/Documents/PARA/Resource/olive-clone/build/tmp/test/work @/Users/danny/.gradle/.tmp/gradle-worker-classpath4971643759879864436txt -Xmx512m -Dfile.encoding=UTF-8 -Duser.country=KR -Duser.language=ko -Duser.variant -ea worker.org.gradle.process.internal.worker.GradleWorkerMain 'Gradle Test Executor 93'
+Starting process 'Gradle Test Executor 93'. Working directory: /Users/<user>/Documents/PARA/Resource/olive-clone Command: /Users/<user>/.gradle/jdks/eclipse_adoptium-21-aarch64-os_x.2/jdk-21.0.11+10/Contents/Home/bin/java -Ddocker.host=unix:///Users/<user>/.docker/run/docker.sock -Dorg.gradle.internal.worker.tmpdir=/Users/<user>/Documents/PARA/Resource/olive-clone/build/tmp/test/work @/Users/<user>/.gradle/.tmp/gradle-worker-classpath4971643759879864436txt -Xmx512m -Dfile.encoding=UTF-8 -Duser.country=KR -Duser.language=ko -Duser.variant -ea worker.org.gradle.process.internal.worker.GradleWorkerMain 'Gradle Test Executor 93'
 Successfully started process 'Gradle Test Executor 93'
 CouponServiceConcurrencyTest STANDARD_OUT
     19:16:03.845 [Test worker] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [com.olive.commerce.promotion.CouponServiceConcurrencyTest]: CouponServiceConcurrencyTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
     19:16:03.862 [Test worker] INFO org.testcontainers.images.PullPolicy -- Image pull policy will be performed by: DefaultPullPolicy()
     19:16:03.863 [Test worker] INFO org.testcontainers.utility.ImageNameSubstitutor -- Image name substitution will be performed by: DefaultImageNameSubstitutor (composite of 'ConfigurationFileImageNameSubstitutor' and 'PrefixingImageNameSubstitutor')
     19:16:03.867 [Test worker] INFO org.testcontainers.DockerClientFactory -- Testcontainers version: 1.21.4
-    19:16:04.093 [Test worker] INFO org.testcontainers.dockerclient.DockerClientProviderStrategy -- Found Docker environment with Environment variables, system properties and defaults. Resolved dockerHost=unix:///Users/danny/.docker/run/docker.sock
+    19:16:04.093 [Test worker] INFO org.testcontainers.dockerclient.DockerClientProviderStrategy -- Found Docker environment with Environment variables, system properties and defaults. Resolved dockerHost=unix:///Users/<user>/.docker/run/docker.sock
     19:16:04.094 [Test worker] INFO org.testcontainers.DockerClientFactory -- Docker host IP address is localhost
     19:16:04.105 [Test worker] INFO org.testcontainers.DockerClientFactory -- Connected to docker: 
     19:16:04.268 [Test worker] INFO tc.testcontainers/ryuk:0.12.0 -- Creating container for image: testcontainers/ryuk:0.12.0
@@ -34,7 +34,7 @@ CouponServiceConcurrencyTest STANDARD_OUT
     19:16:05.476 [Test worker] INFO tc.postgres:16-alpine -- Container postgres:16-alpine started in PT0.884542S
     19:16:05.477 [Test worker] INFO tc.postgres:16-alpine -- Container is started (JDBC URL: jdbc:postgresql://localhost:63967/commerce?loggerLevel=OFF)
     19:16:05.584 [Test worker] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration com.olive.commerce.CommerceBackendApplication for test class com.olive.commerce.promotion.CouponServiceConcurrencyTest
-    2026-05-11 19:16:05.939 INFO  [traceId=] c.o.c.p.CouponServiceConcurrencyTest - Starting CouponServiceConcurrencyTest using Java 21.0.11 with PID 47559 (started by danny in /Users/danny/Documents/PARA/Resource/olive-clone)
+    2026-05-11 19:16:05.939 INFO  [traceId=] c.o.c.p.CouponServiceConcurrencyTest - Starting CouponServiceConcurrencyTest using Java 21.0.11 with PID 47559 (started by cskwork in /Users/<user>/Documents/PARA/Resource/olive-clone)
     2026-05-11 19:16:05.940 INFO  [traceId=] c.o.c.p.CouponServiceConcurrencyTest - The following 1 profile is active: "test"
 CouponServiceConcurrencyTest STANDARD_ERROR
 CouponServiceConcurrencyTest STANDARD_OUT

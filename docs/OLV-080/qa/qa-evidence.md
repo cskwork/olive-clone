@@ -3,7 +3,7 @@
 ## 실행 명령어
 
 ```bash
-cd /Users/danny/Documents/PARA/Resource/olive-clone
+cd ~/Documents/PARA/Resource/olive-clone
 ./gradlew test --tests "com.olive.commerce.delivery.DeliveryApiIT"
 ```
 

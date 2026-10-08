@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.olive.commerce.common.security.SecurityFilterChainIT" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-05-10T11:07:35" hostname="chaeseong-gug-ui-MacBookPro.local" time="0.133">
+<testsuite name="com.olive.commerce.common.security.SecurityFilterChainIT" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-05-10T11:07:35" hostname="redacted-host" time="0.133">
   <properties/>
   <testcase name="actuatorHealth_isPublic_returns200()" classname="com.olive.commerce.common.security.SecurityFilterChainIT" time="0.026"/>
   <testcase name="apiCart_withTamperedToken_returns401()" classname="com.olive.commerce.common.security.SecurityFilterChainIT" time="0.018"/>
@@ -22,7 +22,7 @@
 
  :: Spring Boot ::                (v3.3.5)
 
-2026-05-10 20:07:34.500 INFO  [traceId=] c.o.c.c.s.SecurityFilterChainIT - Starting SecurityFilterChainIT using Java 21.0.11 with PID 9051 (started by danny in /Users/danny/symphony_workspaces/OLV-005)
+2026-05-10 20:07:34.500 INFO  [traceId=] c.o.c.c.s.SecurityFilterChainIT - Starting SecurityFilterChainIT using Java 21.0.11 with PID 9051 (started by cskwork in /Users/<user>/symphony_workspaces/OLV-005)
 2026-05-10 20:07:34.500 INFO  [traceId=] c.o.c.c.s.SecurityFilterChainIT - No active profile set, falling back to 1 default profile: "default"
 2026-05-10 20:07:35.272 INFO  [traceId=] o.s.b.a.e.web.EndpointLinksResolver - Exposing 2 endpoints beneath base path '/actuator'
 2026-05-10 20:07:35.615 INFO  [traceId=] o.s.b.t.m.w.SpringBootMockServletContext - Initializing Spring TestDispatcherServlet ''
